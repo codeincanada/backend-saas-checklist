@@ -26,6 +26,9 @@ echo "Location: $LOCATION"
 echo "Storage Account: $STORAGE_NAME"
 echo "Function App Name: $FUNCTION_APP_NAME"
 
+# Remember the script directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 # Ensure Azure CLI is logged in
 echo "Checking Azure CLI login status..."
 az account show > /dev/null || { echo "Please login with 'az login'"; exit 1; }
@@ -57,10 +60,13 @@ az functionapp config appsettings set --name $FUNCTION_APP_NAME --resource-group
 echo "Configuring CORS..."
 az functionapp cors add --name $FUNCTION_APP_NAME --resource-group $RESOURCE_GROUP --allowed-origins "http://localhost:5173" "https://mellifluous-meringue-b16ddc.netlify.app"
 
-# Deploy the function app
-echo "Building and deploying function app..."
+# Build the function app
+echo "Building function app..."
+cd "$SCRIPT_DIR"
 npm run build
-cd ..
+
+# Deploy the function app
+echo "Deploying function app..."
 func azure functionapp publish $FUNCTION_APP_NAME --node-version 22 --force
 
 # Get the function URL
@@ -73,4 +79,4 @@ echo ""
 echo "Please update AuthContext.tsx with this URL:"
 echo "const AZURE_FUNCTION_URL = import.meta.env.PROD ? '$FUNCTION_URL' : 'http://localhost:7071/api/githubAuth';"
 echo ""
-# echo "Don't forget to replace YOUR_GITHUB_CLIENT_SECRET with your actual value!" 
+echo "Don't forget to update the GitHub OAuth App callback URL to: $FUNCTION_URL" 

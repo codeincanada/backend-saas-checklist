@@ -4,7 +4,7 @@
   "description": "API for GitHub authentication",
   "main": "dist/src/functions/*.js",
   "scripts": {
-    "build": "npm run tsc",
+    "build": "tsc",
     "watch": "tsc -w",
     "clean": "rimraf dist",
     "prestart": "npm run clean && npm run build",
