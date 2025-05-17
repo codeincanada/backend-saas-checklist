@@ -7,9 +7,10 @@ interface ChecklistContextType {
   toggleItem: (sectionId: string, itemId: string) => void;
   getSectionProgress: (sectionId: string) => number;
   getOverallProgress: () => number;
-  filterSections: (category?: string) => void;
-  resetFilters: () => void;
-  filteredSections: ChecklistSection[];
+  nextFocusItemId: string | null;
+  setNextFocusItemId: (itemId: string | null) => void;
+  completedSectionIdToAdvanceFrom: string | null;
+  setCompletedSectionIdToAdvanceFrom: (sectionId: string | null) => void;
 }
 
 const ChecklistContext = createContext<ChecklistContextType | undefined>(undefined);
@@ -23,17 +24,18 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     const saved = localStorage.getItem('microservice-checklist');
     return saved ? JSON.parse(saved) : initialSections;
   });
-
-  const [filteredSections, setFilteredSections] = useState<ChecklistSection[]>(sections);
+  const [nextFocusItemId, setNextFocusItemId] = useState<string | null>(null);
+  const [completedSectionIdToAdvanceFrom, setCompletedSectionIdToAdvanceFrom] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('microservice-checklist', JSON.stringify(sections));
-    setFilteredSections(sections);
   }, [sections]);
 
   const toggleItem = (sectionId: string, itemId: string) => {
-    setSections(prevSections => 
-      prevSections.map(section => 
+    setNextFocusItemId(null); // Clear previous focus intention first
+
+    setSections(prevSections => {
+      const newSections = prevSections.map(section => 
         section.id === sectionId 
           ? {
               ...section,
@@ -44,8 +46,42 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
               )
             }
           : section
-      )
-    );
+      );
+
+      // --- Start: Logic to run AFTER sections are updated ---
+      const currentSection = newSections.find(s => s.id === sectionId);
+      let nextUncheckedItemIdForFocus: string | null = null;
+      let sectionJustCompletedId: string | null = null;
+
+      if (currentSection) {
+        const toggledItem = currentSection.items.find(i => i.id === itemId);
+        if (toggledItem && toggledItem.checked) { // If we just *checked* an item
+            const firstUnchecked = currentSection.items.find(item => !item.checked);
+            if (firstUnchecked) {
+                nextUncheckedItemIdForFocus = firstUnchecked.id;
+            } else {
+                // No unchecked items left, this section is complete
+                sectionJustCompletedId = sectionId;
+            }
+        }
+      }
+      
+      // Update states based on the newSections evaluation
+      // Schedule these updates to run after the current state update cycle
+      // by using a microtask (Promise.resolve().then()) or a zero-delay setTimeout.
+      // This ensures that AppContent's useEffect can react to these changes correctly.
+      Promise.resolve().then(() => {
+          if (nextUncheckedItemIdForFocus) {
+            setNextFocusItemId(nextUncheckedItemIdForFocus);
+          }
+          if (sectionJustCompletedId) {
+            setCompletedSectionIdToAdvanceFrom(sectionJustCompletedId);
+          }
+      });
+      // --- End: Logic to run AFTER sections are updated ---
+      
+      return newSections;
+    });
   };
 
   const getSectionProgress = (sectionId: string): number => {
@@ -66,19 +102,6 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     return totalItems ? (checkedItems / totalItems) * 100 : 0;
   };
 
-  const filterSections = (category?: string) => {
-    if (!category) {
-      setFilteredSections(sections);
-      return;
-    }
-    
-    setFilteredSections(sections.filter(section => section.id === category));
-  };
-
-  const resetFilters = () => {
-    setFilteredSections(sections);
-  };
-
   return (
     <ChecklistContext.Provider 
       value={{ 
@@ -86,9 +109,10 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
         toggleItem, 
         getSectionProgress, 
         getOverallProgress,
-        filterSections,
-        resetFilters,
-        filteredSections
+        nextFocusItemId,
+        setNextFocusItemId,
+        completedSectionIdToAdvanceFrom,
+        setCompletedSectionIdToAdvanceFrom
       }}
     >
       {children}

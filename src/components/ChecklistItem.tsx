@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useChecklist } from '../contexts/ChecklistContext';
 import { ChecklistItem as ChecklistItemType } from '../types';
 import { Check, Info } from 'lucide-react';
@@ -9,11 +9,30 @@ interface ChecklistItemProps {
 }
 
 const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, sectionId }) => {
-  const { toggleItem } = useChecklist();
+  const { toggleItem, nextFocusItemId, setNextFocusItemId } = useChecklist();
   const [showInfo, setShowInfo] = useState(false);
+  const itemRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (item.id === nextFocusItemId && itemRef.current) {
+      itemRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+      itemRef.current.classList.add('ring-2', 'ring-indigo-500', 'ring-offset-2');
+      setTimeout(() => {
+        itemRef.current?.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2');
+      }, 1500);
+      setNextFocusItemId(null);
+    }
+  }, [item.id, nextFocusItemId, setNextFocusItemId]);
 
   return (
-    <div className="border border-gray-200 rounded-lg mb-2 hover:border-gray-300 hover:shadow-sm transition-all duration-200">
+    <div 
+      ref={itemRef} 
+      className="border border-gray-200 rounded-lg mb-2 hover:border-gray-300 hover:shadow-sm transition-all duration-200"
+      data-item-id={item.id}
+    >
       <div className="p-3 flex items-start gap-3">
         <div 
           className={`flex-shrink-0 w-6 h-6 rounded border ${

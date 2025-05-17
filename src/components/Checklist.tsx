@@ -1,21 +1,25 @@
 import React from 'react';
 import { useChecklist } from '../contexts/ChecklistContext';
-import ChecklistSection from './ChecklistSection';
-import Filter from './Filter';
+import ChecklistSectionComponent from './ChecklistSection';
 
-const Checklist: React.FC = () => {
-  const { filteredSections } = useChecklist();
-  
+interface ChecklistProps {
+  activeCategory: string | null;
+}
+
+const Checklist: React.FC<ChecklistProps> = ({ activeCategory }) => {
+  const { sections } = useChecklist();
+
+  const currentSection = sections.find(s => s.id === activeCategory);
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 print:hidden">
-        <Filter />
-      </div>
+    <div className="container mx-auto px-4 pb-8">
       
       <div className="grid grid-cols-1 gap-6">
-        {filteredSections.map((section) => (
-          <ChecklistSection key={section.id} section={section} />
-        ))}
+        {currentSection ? (
+          <ChecklistSectionComponent key={currentSection.id} section={currentSection} />
+        ) : (
+          <p>Select a category to see the checklist items.</p>
+        )}
       </div>
     </div>
   );
