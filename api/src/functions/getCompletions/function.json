@@ -1,0 +1,26 @@
+{
+  "bindings": [
+    {
+      "authLevel": "anonymous", // Or "function" or "admin"
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "req",
+      "methods": ["get"],
+      "route": "completions"
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "res"
+    },
+    {
+      "type": "table",
+      "tableName": "UserTaskCompletions",
+      "partitionKey": "{Query.githubUserId}", // Dynamically binds to githubUserId from query params
+      "connection": "AzureWebJobsStorage",
+      "direction": "in",
+      "name": "completions" // Function receives entities in this parameter
+    }
+  ],
+  "scriptFile": "../../dist/getCompletions/index.js"
+} 
