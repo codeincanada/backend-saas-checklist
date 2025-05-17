@@ -57,6 +57,7 @@ const AppContent: React.FC = () => {
           categories={allCategoriesData.map(c => ({ id: c.id, title: c.title, color: c.color }))}
           activeCategory={activeCategory}
           onSelectCategory={handleSelectCategory}
+          getSectionProgress={getSectionProgress}
         />
         <Checklist activeCategory={activeCategory} />
       </main>
