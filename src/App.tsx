@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { ChecklistProvider, useChecklist } from './contexts/ChecklistContext';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CompletionProvider } from './contexts/CompletionContext';
 import { handleAuthCallback } from './utils/auth';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Checklist from './components/Checklist';
 import CategoryTabs from './components/CategoryTabs';
+import Toast from './components/Toast';
 import { sections as allCategoriesData } from './utils/data';
 
 // Inner component to access ChecklistContext for auto-advancing tabs
@@ -20,6 +21,8 @@ const AppContent: React.FC = () => {
     isLoading,
     error
   } = useChecklist();
+  
+  const { authError, clearAuthError } = useAuth();
 
   const [activeCategory, setActiveCategory] = useState<string | null>(
     allCategoriesData.length > 0 ? allCategoriesData[0].id : null
@@ -56,6 +59,13 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {authError && (
+        <Toast 
+          message={authError} 
+          type="error" 
+          onClose={clearAuthError} 
+        />
+      )}
       <Header />
       <main className="py-6 container mx-auto px-4 pb-24">
         {/* Loading and Error Indicators */}
