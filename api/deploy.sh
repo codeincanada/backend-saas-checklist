@@ -43,17 +43,31 @@ fi
 # Try to get existing storage account if function app exists
 STORAGE_ACCOUNT_NAME=""
 if az functionapp show --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --query name --output tsv 2>/dev/null; then
-    echo "Function App '$FIXED_FUNCTION_APP_NAME' exists. Querying its storage account."
-    STORAGE_ACCOUNT_ID=$(az functionapp show --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --query "siteConfig.azureStorageAccounts.default.accountName" --output tsv)
-    if [[ -n "$STORAGE_ACCOUNT_ID" ]]; then
-        STORAGE_ACCOUNT_NAME=$STORAGE_ACCOUNT_ID
-        echo "Using existing storage account: $STORAGE_ACCOUNT_NAME"
+    echo "Function App '$FIXED_FUNCTION_APP_NAME' exists. Querying its storage account connection string."
+    APP_SETTINGS=$(az functionapp config appsettings list --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --query "[?name=='AzureWebJobsStorage'].value" -o tsv 2>/dev/null)
+    if [[ -n "$APP_SETTINGS" && "$APP_SETTINGS" != "null" ]]; then
+        # Extract account name from connection string: DefaultEndpointsProtocol=https;AccountName=YOUR_ACCOUNT_NAME;AccountKey=...;
+        STORAGE_ACCOUNT_NAME=$(echo "$APP_SETTINGS" | sed -n 's/.*AccountName=\([^;]*\);.*/\1/p')
+        if [[ -n "$STORAGE_ACCOUNT_NAME" ]]; then
+            echo "Using existing storage account: $STORAGE_ACCOUNT_NAME"
+        else
+            echo "Could not parse storage account name from AzureWebJobsStorage."
+            STORAGE_ACCOUNT_NAME="" # Ensure it's reset if parsing failed
+        fi
+    else
+        echo "AzureWebJobsStorage setting not found or is null for existing function app."
     fi
 fi
 
 # If storage account not found or function app doesn't exist yet, create a new one
 if [[ -z "$STORAGE_ACCOUNT_NAME" ]]; then
-    GENERATED_STORAGE_SUFFIX=$(head /dev/urandom | tr -dc a-z0-9 | head -c 6)
+    echo "Attempting to create or use a new/default storage account logic."
+    # More portable random string generation
+    if command -v openssl &> /dev/null; then
+        GENERATED_STORAGE_SUFFIX=$(openssl rand -hex 3)
+    else # fallback for systems without openssl easily available in path, or use alternative
+        GENERATED_STORAGE_SUFFIX=$(date +%s | sha256sum | base64 | head -c 6 | tr '[:upper:]' '[:lower:]')
+    fi 
     STORAGE_ACCOUNT_NAME="${FIXED_STORAGE_NAME_BASE}${GENERATED_STORAGE_SUFFIX}"
     echo "Creating storage account: $STORAGE_ACCOUNT_NAME in $LOCATION..."
     az storage account create --name "$STORAGE_ACCOUNT_NAME" --location "$LOCATION" --resource-group "$FIXED_RESOURCE_GROUP" --sku Standard_LRS --kind StorageV2
@@ -68,7 +82,6 @@ else
 fi
 
 echo "Setting app configurations for $FIXED_FUNCTION_APP_NAME..."
-az functionapp config set --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --linux-fx-version "NODE|22"
 az functionapp config appsettings set --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --settings \
   "GITHUB_CLIENT_ID=Ov23lid8MA0Pb0EStu9w" \
   "GITHUB_CLIENT_SECRET=ff39a41694e61ce0f8f8a2728d08241bd97cc04e" \
