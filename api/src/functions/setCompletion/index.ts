@@ -1,4 +1,20 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
+import { TableClient, AzureNamedKeyCredential } from "@azure/data-tables";
+
+// These should be configured in your Function App's settings
+const storageAccountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
+const storageAccountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
+const tableName = "UserTaskCompletions";
+
+// Initialize the Table client only when the function is called
+function getTableClient() {
+  const credential = new AzureNamedKeyCredential(storageAccountName!, storageAccountKey!);
+  return new TableClient(
+    `https://${storageAccountName}.table.core.windows.net`,
+    tableName,
+    credential
+  );
+}
 
 const setCompletion = async (
   request: HttpRequest,
@@ -6,8 +22,7 @@ const setCompletion = async (
 ): Promise<HttpResponseInit> => {
   context.log("HTTP trigger function processed a request for setCompletion.");
 
-  // Assume githubUserId is passed in a header or derived from an auth context
-  // In a real scenario, you MUST validate this user's identity.
+  // Get the GitHub user ID from header
   const githubUserId = request.headers.get("x-github-user-id");
   
   // Parse request body
@@ -39,19 +54,18 @@ const setCompletion = async (
 
   try {
     const entity = {
-      PartitionKey: githubUserId,
-      RowKey: taskIdentifier,
-      CompletionData: JSON.stringify(completionData), // Serialize the completion data to a JSON string
-      CustomLastUpdatedAt: new Date().toISOString(),
+      partitionKey: githubUserId,
+      rowKey: taskIdentifier,
+      completionData: JSON.stringify(completionData),
+      customLastUpdatedAt: new Date().toISOString(),
     };
 
-    // Assign the entity to the output binding.
-    // The Azure Functions runtime will handle writing this to Azure Table Storage.
-    // This performs an "upsert" operation (create if not exists, or update if exists).
-    context.extraOutputs.set('outputTable', entity);
+    // Use TableClient to directly insert the entity
+    const tableClient = getTableClient();
+    await tableClient.upsertEntity(entity, "Replace");
 
     return {
-      status: 200, // Or 201 if you want to distinguish between create and update
+      status: 200,
       body: JSON.stringify({ message: "Completion data saved successfully." }),
       headers: {
         "Content-Type": "application/json"
@@ -73,11 +87,5 @@ app.http('setCompletion', {
   methods: ['POST', 'PUT'],
   route: 'completion',
   authLevel: 'anonymous',
-  extraOutputs: [{
-    type: 'table',
-    name: 'outputTable',
-    tableName: 'UserTaskCompletions',
-    connection: 'AzureWebJobsStorage'
-  }],
   handler: setCompletion
 }); 

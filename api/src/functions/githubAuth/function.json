@@ -5,8 +5,9 @@
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": ["get"],
-      "route": "completions"
+      "methods": [
+        "get"
+      ]
     },
     {
       "type": "http",

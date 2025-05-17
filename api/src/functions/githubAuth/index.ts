@@ -106,4 +106,4 @@ app.http('githubAuth', {
     methods: ['GET'],
     authLevel: 'anonymous',
     handler: githubAuth
-});
+}); 

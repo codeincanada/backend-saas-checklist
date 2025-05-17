@@ -113,7 +113,7 @@ func azure functionapp publish "$FIXED_FUNCTION_APP_NAME" --node-version 22 --fo
 
 # Get the function URL for the fixed function app name
 echo "Getting function URL for $FIXED_FUNCTION_APP_NAME..."
-FUNCTION_URL=$(az functionapp function show --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --function-name githubauth --query "invokeUrlTemplate" --output tsv)
+FUNCTION_URL=$(az functionapp function show --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --function-name githubAuth --query "invokeUrlTemplate" --output tsv)
 
 echo "Deployment to $FIXED_FUNCTION_APP_NAME completed successfully!"
 echo "Function URL: $FUNCTION_URL"

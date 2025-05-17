@@ -6,7 +6,7 @@ const storageAccountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
 const storageAccountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
 const tableName = "UserTaskCompletions";
 
-// Initialize the Table client only when the function is called (to avoid issues during cold start)
+// Initialize the Table client only when the function is called
 function getTableClient() {
   // Ensure you have AZURE_STORAGE_ACCOUNT_NAME and AZURE_STORAGE_ACCOUNT_KEY in application settings
   const credential = new AzureNamedKeyCredential(storageAccountName!, storageAccountKey!);

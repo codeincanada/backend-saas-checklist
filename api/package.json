@@ -2,7 +2,7 @@
   "name": "github-auth-api",
   "version": "1.0.0",
   "description": "API for GitHub authentication",
-  "main": "dist/src/functions/*.js",
+  "main": "dist/src/functions/*/index.js",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",

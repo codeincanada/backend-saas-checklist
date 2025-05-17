@@ -1,25 +1,17 @@
 {
   "bindings": [
     {
-      "authLevel": "anonymous", // Or "function" or "admin" based on your auth needs
+      "authLevel": "anonymous",
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
       "methods": ["post", "put"],
-      "route": "completion" // Optional: defines the route, e.g., /api/completion
+      "route": "completion"
     },
     {
       "type": "http",
       "direction": "out",
       "name": "res"
-    },
-    {
-      "type": "table",
-      "tableName": "UserTaskCompletions",
-      "connection": "AzureWebJobsStorage", // App setting name for Storage connection string
-      "direction": "out",
-      "name": "outputTable" // This is how you'll refer to the output binding in code
     }
-  ],
-  "scriptFile": "../../dist/setCompletion/index.js" // Path to the compiled JS file
+  ]
 } 
