@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Octokit } from '@octokit/rest';
 
-// Define the Azure Function URL - will be replaced with actual deployment URL
+// Define the Azure Function URL with the actual deployment URL
 const AZURE_FUNCTION_URL = import.meta.env.PROD
-  ? 'https://your-function-app-name.azurewebsites.net/api/githubAuth'
+  ? 'https://github-auth-function-20556.azurewebsites.net/api/githubAuth'
   : 'http://localhost:7071/api/githubAuth';
 
 interface AuthContextType {
