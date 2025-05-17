@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useChecklist } from '../contexts/ChecklistContext';
 import { ChecklistSection as ChecklistSectionType } from '../types';
 import ChecklistItem from './ChecklistItem';
-import { ChevronDown, ChevronUp, Code2, Rocket, MessageSquare, LineChart, FileText, TestTube, ShieldCheck, Settings } from 'lucide-react';
+import { Code2, Rocket, MessageSquare, LineChart, FileText, TestTube, ShieldCheck, Settings } from 'lucide-react';
 
 const iconMap: Record<string, React.ReactNode> = {
   'Code2': <Code2 />,
@@ -21,7 +21,6 @@ interface ChecklistSectionProps {
 
 const ChecklistSection: React.FC<ChecklistSectionProps> = ({ section }) => {
   const { getSectionProgress } = useChecklist();
-  const [isExpanded, setIsExpanded] = useState(true);
   const progress = getSectionProgress(section.id);
 
   return (
@@ -29,10 +28,7 @@ const ChecklistSection: React.FC<ChecklistSectionProps> = ({ section }) => {
       className="bg-white rounded-xl shadow-md overflow-hidden mb-6 transform transition-all duration-300 hover:shadow-lg"
       data-section-id={section.id}
     >
-      <div 
-        className={`${section.color} cursor-pointer`}
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
+      <div className={`${section.color}`}>
         <div className="p-4 flex justify-between items-center text-white">
           <div className="flex items-center">
             <div className="p-2 bg-white/20 rounded-lg mr-3">
@@ -45,7 +41,6 @@ const ChecklistSection: React.FC<ChecklistSectionProps> = ({ section }) => {
             <div className="mr-4">
               <span className="font-medium">{Math.round(progress)}%</span>
             </div>
-            {isExpanded ? <ChevronUp /> : <ChevronDown />}
           </div>
         </div>
         
@@ -57,17 +52,15 @@ const ChecklistSection: React.FC<ChecklistSectionProps> = ({ section }) => {
         </div>
       </div>
       
-      {isExpanded && (
-        <div className="p-4 animate-fadeIn">
-          {section.items.map((item) => (
-            <ChecklistItem 
-              key={item.id} 
-              item={item} 
-              sectionId={section.id} 
-            />
-          ))}
-        </div>
-      )}
+      <div className="p-4 animate-fadeIn">
+        {section.items.map((item) => (
+          <ChecklistItem 
+            key={item.id} 
+            item={item} 
+            sectionId={section.id} 
+          />
+        ))}
+      </div>
     </div>
   );
 };
