@@ -1,12 +1,12 @@
 import React from 'react';
-import { useChecklist } from '../contexts/ChecklistContext';
+// import { useChecklist } from '../contexts/ChecklistContext'; // No longer needed here
 import { useAuth } from '../contexts/AuthContext';
 import { Server, Github, LogOut } from 'lucide-react';
 
 const Header: React.FC = () => {
-  const { getOverallProgress } = useChecklist();
+  // const { getOverallProgress } = useChecklist(); // Removed
   const { isAuthenticated, user, login, logout, loading } = useAuth();
-  const progress = getOverallProgress();
+  // const progress = getOverallProgress(); // Removed
 
   return (
     <header className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 shadow-lg">
@@ -19,19 +19,7 @@ const Header: React.FC = () => {
         </div>
         
         <div className="flex md:flex-row flex-col items-center gap-4">
-          {/* Progress Bar Section */}
-          <div className="w-full md:w-56">
-            <div className="flex justify-between text-sm mb-1">
-              <span>Overall Progress</span>
-              <span className="font-medium">{Math.round(progress)}%</span>
-            </div>
-            <div className="h-3 w-full bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-white transition-all duration-500 ease-out"
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-          </div>
+          {/* Progress Bar Section Removed */}
 
           {/* Auth Section */}
           {loading ? (

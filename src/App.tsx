@@ -11,6 +11,7 @@ import { sections as allCategoriesData } from './utils/data';
 const AppContent: React.FC = () => {
   const { 
     sections, // Get all sections to check their progress
+    getOverallProgress,
     getSectionProgress, 
     completedSectionIdToAdvanceFrom, 
     setCompletedSectionIdToAdvanceFrom 
@@ -53,6 +54,20 @@ const AppContent: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <main className="py-6 container mx-auto px-4">
+        {/* Overall Progress Bar - New Location */}
+        <div className="mb-6 w-full md:w-auto"> {/* Adjusted width and margin */}
+          <div className="flex justify-between text-sm mb-1 text-gray-700"> {/* Adjusted text color */}
+            <span>Overall Progress</span>
+            <span className="font-medium">{Math.round(getOverallProgress())}%</span>
+          </div>
+          <div className="h-3 w-full bg-gray-200 rounded-full overflow-hidden"> {/* Adjusted bg color */}
+            <div
+              className="h-full bg-indigo-600 transition-all duration-500 ease-out" // Adjusted progress bar color
+              style={{ width: `${getOverallProgress()}%` }}
+            ></div>
+          </div>
+        </div>
+
         <CategoryTabs 
           categories={allCategoriesData.map(c => ({ id: c.id, title: c.title, color: c.color }))}
           activeCategory={activeCategory}
