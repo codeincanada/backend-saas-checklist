@@ -21,6 +21,9 @@ const setCompletion = async (
     return {
       status: 401,
       body: JSON.stringify({ error: "User not authenticated or githubUserId not provided." }),
+      headers: {
+        "Content-Type": "application/json"
+      }
     };
   }
 
@@ -28,28 +31,42 @@ const setCompletion = async (
     return {
       status: 400,
       body: JSON.stringify({ error: "Please provide taskIdentifier and completionData in the request body." }),
+      headers: {
+        "Content-Type": "application/json"
+      }
     };
   }
 
-  const entity = {
-    PartitionKey: githubUserId,
-    RowKey: taskIdentifier,
-    CompletionData: JSON.stringify(completionData), // Serialize the completion data to a JSON string
-    CustomLastUpdatedAt: new Date().toISOString(),
-  };
+  try {
+    const entity = {
+      PartitionKey: githubUserId,
+      RowKey: taskIdentifier,
+      CompletionData: JSON.stringify(completionData), // Serialize the completion data to a JSON string
+      CustomLastUpdatedAt: new Date().toISOString(),
+    };
 
-  // Assign the entity to the output binding.
-  // The Azure Functions runtime will handle writing this to Azure Table Storage.
-  // This performs an "upsert" operation (create if not exists, or update if exists).
-  context.extraOutputs.set('outputTable', entity);
+    // Assign the entity to the output binding.
+    // The Azure Functions runtime will handle writing this to Azure Table Storage.
+    // This performs an "upsert" operation (create if not exists, or update if exists).
+    context.extraOutputs.set('outputTable', entity);
 
-  return {
-    status: 200, // Or 201 if you want to distinguish between create and update
-    body: JSON.stringify({ message: "Completion data saved successfully." }),
-    headers: {
-      "Content-Type": "application/json"
-    }
-  };
+    return {
+      status: 200, // Or 201 if you want to distinguish between create and update
+      body: JSON.stringify({ message: "Completion data saved successfully." }),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    };
+  } catch (error) {
+    context.log(`Error saving completion: ${error instanceof Error ? error.message : String(error)}`);
+    return {
+      status: 500,
+      body: JSON.stringify({ error: "Failed to save completion data. " + (error instanceof Error ? error.message : String(error)) }),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    };
+  }
 };
 
 app.http('setCompletion', {
