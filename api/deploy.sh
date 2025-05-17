@@ -85,13 +85,13 @@ echo "Setting app configurations for $FIXED_FUNCTION_APP_NAME..."
 az functionapp config appsettings set --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --settings \
   "GITHUB_CLIENT_ID=Ov23lid8MA0Pb0EStu9w" \
   "GITHUB_CLIENT_SECRET=ff39a41694e61ce0f8f8a2728d08241bd97cc04e" \
-  "ALLOWED_ORIGINS=http://localhost:5173,https://mellifluous-meringue-b16ddc.netlify.app" \
+  "ALLOWED_ORIGINS=https://mellifluous-meringue-b16ddc.netlify.app" \
   "WEBSITE_NODE_DEFAULT_VERSION=~22" \
   "FUNCTIONS_EXTENSION_VERSION=~4" \
   "FUNCTIONS_WORKER_RUNTIME=node"
 
 echo "Configuring CORS for $FIXED_FUNCTION_APP_NAME..."
-az functionapp cors add --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --allowed-origins "http://localhost:5173" "https://mellifluous-meringue-b16ddc.netlify.app" # This command adds, it doesn't overwrite, which is usually fine.
+az functionapp cors add --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --allowed-origins "https://mellifluous-meringue-b16ddc.netlify.app" # This command adds, it doesn't overwrite, which is usually fine.
 
 echo "Building function app..."
 cd "$SCRIPT_DIR"
@@ -110,4 +110,12 @@ echo ""
 echo "Ensure AuthContext.tsx uses this URL for production:"
 echo "const AZURE_FUNCTION_URL = import.meta.env.PROD ? '$FUNCTION_URL' : 'http://localhost:7071/api/githubauth';"
 echo ""
-echo "Ensure your GitHub OAuth App callback URL is: $FUNCTION_URL" 
+echo "Ensure your GitHub OAuth App callback URL is: $FUNCTION_URL"
+
+echo "Ensuring FUNCTIONS_WORKER_RUNTIME is set to node..."
+az functionapp config appsettings set -g "$FIXED_RESOURCE_GROUP" -n "$FIXED_FUNCTION_APP_NAME" --settings FUNCTIONS_WORKER_RUNTIME=node WEBSITE_NODE_DEFAULT_VERSION="~22" GITHUB_CLIENT_ID="Ov23lid8MA0Pb0EStu9w" GITHUB_CLIENT_SECRET="ff39a41694e61ce0f8f8a2728d08241bd97cc04e" ALLOWED_ORIGINS="https://mellifluous-meringue-b16ddc.netlify.app" > /dev/null
+if [ $? -ne 0 ]; then
+  echo "Failed to update app settings for $FIXED_FUNCTION_APP_NAME. Exiting."
+  exit 1
+fi
+echo "App settings updated for $FIXED_FUNCTION_APP_NAME." 
