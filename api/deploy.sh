@@ -35,11 +35,11 @@ az account show > /dev/null || { echo "Please login with 'az login'"; exit 1; }
 
 # Create a resource group
 echo "Creating resource group..."
-az group create --name $RESOURCE_GROUP --location $LOCATION
+az group create --name "$RESOURCE_GROUP" --location "$LOCATION"
 
 # Create a storage account
 echo "Creating storage account..."
-az storage account create --name $STORAGE_NAME --location $LOCATION --resource-group $RESOURCE_GROUP --sku Standard_LRS --kind StorageV2
+az storage account create --name "$STORAGE_NAME" --location "$LOCATION" --resource-group "$RESOURCE_GROUP" --sku Standard_LRS --kind StorageV2
 
 # Get the storage connection string
 echo "Getting storage connection string..."
@@ -47,18 +47,22 @@ STORAGE_CONNECTION_STRING=$(az storage account show-connection-string --name $ST
 
 # Create a function app
 echo "Creating function app..."
-az functionapp create --name $FUNCTION_APP_NAME --storage-account $STORAGE_NAME --consumption-plan-location $LOCATION --resource-group $RESOURCE_GROUP --runtime node --runtime-version 22 --functions-version 4
+az functionapp create --name "$FUNCTION_APP_NAME" --storage-account "$STORAGE_NAME" --consumption-plan-location "$LOCATION" --resource-group "$RESOURCE_GROUP" --runtime node --runtime-version 22 --functions-version 4 --os-type Linux
 
 # Configure app settings
 echo "Setting app configurations..."
-az functionapp config appsettings set --name $FUNCTION_APP_NAME --resource-group $RESOURCE_GROUP --settings "GITHUB_CLIENT_ID=Ov23lid8MA0Pb0EStu9w"
-az functionapp config appsettings set --name $FUNCTION_APP_NAME --resource-group $RESOURCE_GROUP --settings "GITHUB_CLIENT_SECRET=ff39a41694e61ce0f8f8a2728d08241bd97cc04e"
-az functionapp config appsettings set --name $FUNCTION_APP_NAME --resource-group $RESOURCE_GROUP --settings "ALLOWED_ORIGINS=http://localhost:5173,https://mellifluous-meringue-b16ddc.netlify.app"
-az functionapp config appsettings set --name $FUNCTION_APP_NAME --resource-group $RESOURCE_GROUP --settings "WEBSITE_NODE_DEFAULT_VERSION=~22"
+az functionapp config set --name "$FUNCTION_APP_NAME" --resource-group "$RESOURCE_GROUP" --linux-fx-version "NODE|22"
+az functionapp config appsettings set --name "$FUNCTION_APP_NAME" --resource-group "$RESOURCE_GROUP" --settings \
+  "GITHUB_CLIENT_ID=Ov23lid8MA0Pb0EStu9w" \
+  "GITHUB_CLIENT_SECRET=ff39a41694e61ce0f8f8a2728d08241bd97cc04e" \
+  "ALLOWED_ORIGINS=http://localhost:5173,https://mellifluous-meringue-b16ddc.netlify.app" \
+  "WEBSITE_NODE_DEFAULT_VERSION=~22" \
+  "FUNCTIONS_EXTENSION_VERSION=~4" \
+  "FUNCTIONS_WORKER_RUNTIME=node"
 
 # Enable CORS
 echo "Configuring CORS..."
-az functionapp cors add --name $FUNCTION_APP_NAME --resource-group $RESOURCE_GROUP --allowed-origins "http://localhost:5173" "https://mellifluous-meringue-b16ddc.netlify.app"
+az functionapp cors add --name "$FUNCTION_APP_NAME" --resource-group "$RESOURCE_GROUP" --allowed-origins "http://localhost:5173" "https://mellifluous-meringue-b16ddc.netlify.app"
 
 # Build the function app
 echo "Building function app..."
@@ -67,16 +71,16 @@ npm run build
 
 # Deploy the function app
 echo "Deploying function app..."
-func azure functionapp publish $FUNCTION_APP_NAME --node-version 22 --force
+func azure functionapp publish "$FUNCTION_APP_NAME" --node-version 22 --force
 
 # Get the function URL
 echo "Getting function URL..."
-FUNCTION_URL=$(az functionapp function show --name $FUNCTION_APP_NAME --resource-group $RESOURCE_GROUP --function-name githubAuth --query "invokeUrlTemplate" --output tsv)
+FUNCTION_URL=$(az functionapp function show --name "$FUNCTION_APP_NAME" --resource-group "$RESOURCE_GROUP" --function-name githubauth --query "invokeUrlTemplate" --output tsv)
 
 echo "Deployment completed successfully!"
 echo "Function URL: $FUNCTION_URL"
 echo ""
 echo "Please update AuthContext.tsx with this URL:"
-echo "const AZURE_FUNCTION_URL = import.meta.env.PROD ? '$FUNCTION_URL' : 'http://localhost:7071/api/githubAuth';"
+echo "const AZURE_FUNCTION_URL = import.meta.env.PROD ? '$FUNCTION_URL' : 'http://localhost:7071/api/githubauth';"
 echo ""
 echo "Don't forget to update the GitHub OAuth App callback URL to: $FUNCTION_URL" 
