@@ -7,6 +7,9 @@ export const handleAuthCallback = () => {
     // Store the token
     localStorage.setItem('github-token', token);
     
+    // Dispatch a custom event to notify components that authentication state changed
+    window.dispatchEvent(new CustomEvent('auth-token-updated', { detail: { token } }));
+    
     // Clear the URL to remove the token parameter
     if (window.history.pushState) {
       const newurl = window.location.protocol + "//" + window.location.host + window.location.pathname;

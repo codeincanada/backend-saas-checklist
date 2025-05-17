@@ -27,16 +27,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthContextType['user']>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    // Check if token exists in localStorage and verify it
-    const token = localStorage.getItem('github-token');
-    if (token) {
-      verifyToken(token);
-    } else {
-      setLoading(false);
-    }
-  }, []);
-
+  // Function to verify token and set user state
   const verifyToken = async (token: string) => {
     try {
       setLoading(true);
@@ -56,6 +47,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
     }
   };
+
+  // Check for token on component mount
+  useEffect(() => {
+    const token = localStorage.getItem('github-token');
+    if (token) {
+      verifyToken(token);
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
+  // Listen for storage events to detect token changes
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'github-token' && event.newValue) {
+        verifyToken(event.newValue);
+      } else if (event.key === 'github-token' && !event.newValue) {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Listen for custom auth token update event from the same window
+  useEffect(() => {
+    const handleAuthTokenUpdated = (event: CustomEvent) => {
+      if (event.detail && event.detail.token) {
+        verifyToken(event.detail.token);
+      }
+    };
+
+    window.addEventListener('auth-token-updated', handleAuthTokenUpdated as EventListener);
+    return () => window.removeEventListener('auth-token-updated', handleAuthTokenUpdated as EventListener);
+  }, []);
 
   const login = () => {
     // GitHub OAuth flow using Azure Function
