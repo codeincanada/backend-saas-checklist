@@ -23,7 +23,7 @@ An interactive checklist application for backend microservice development best p
    - Fill in the details:
      - Application name: Backend Microservice Checklist
      - Homepage URL: https://mellifluous-meringue-b16ddc.netlify.app (or your production URL)
-     - Authorization callback URL: https://your-function-app-name.azurewebsites.net/api/githubAuth (after deploying Azure Function)
+     - Authorization callback URL: https://github-auth-function-20556.azurewebsites.net/api/githubAuth
    - Register the application
    - Copy the Client ID and Client Secret
 
