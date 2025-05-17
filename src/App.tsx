@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { CompletionProvider } from './contexts/CompletionContext';
 import { handleAuthCallback } from './utils/auth';
 import Header from './components/Header';
+import Footer from './components/Footer';
 import Checklist from './components/Checklist';
 import CategoryTabs from './components/CategoryTabs';
 import { sections as allCategoriesData } from './utils/data';
@@ -56,7 +57,7 @@ const AppContent: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      <main className="py-6 container mx-auto px-4">
+      <main className="py-6 container mx-auto px-4 pb-24">
         {/* Loading and Error Indicators */}
         {isLoading && (
           <div className="mb-4 p-2 bg-blue-100 text-blue-800 rounded-md flex items-center">
@@ -96,9 +97,7 @@ const AppContent: React.FC = () => {
         />
         <Checklist activeCategory={activeCategory} />
       </main>
-      <footer className="py-4 text-center text-gray-500 text-sm">
-        © {new Date().getFullYear()} Backend Microservice Checklist
-      </footer>
+      <Footer />
     </div>
   );
 }

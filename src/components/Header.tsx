@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useChecklist } from '../contexts/ChecklistContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Server, Github, LogOut, Save, Trash2, Plus, List } from 'lucide-react';
+import { Server, Save, Trash2, Plus, List } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { 
@@ -12,7 +12,7 @@ const Header: React.FC = () => {
     setCurrentCompletionId,
     deleteCurrentCompletion
   } = useChecklist();
-  const { isAuthenticated, user, login, logout, loading } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [showCompletions, setShowCompletions] = useState(false);
   const [newTaskName, setNewTaskName] = useState('');
   
@@ -135,37 +135,6 @@ const Header: React.FC = () => {
                 )}
               </div>
             </div>
-          )}
-
-          {/* Auth Section */}
-          {loading ? (
-            <div className="h-10 w-10 rounded-full bg-white/20 animate-pulse"></div>
-          ) : isAuthenticated && user ? (
-            <div className="flex items-center gap-2 bg-white/10 p-1 pl-2 pr-3 rounded-lg">
-              <img 
-                src={user.avatar_url} 
-                alt={user.login} 
-                className="h-8 w-8 rounded-full border border-white"
-              />
-              <span className="text-sm font-medium hidden md:block">
-                {user.name || user.login}
-              </span>
-              <button 
-                onClick={logout}
-                className="ml-1 p-1 hover:bg-white/10 rounded transition-colors"
-                title="Logout"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={login}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 rounded-lg transition-colors duration-200 shadow-md"
-            >
-              <Github className="h-5 w-5" />
-              <span>Login with GitHub</span>
-            </button>
           )}
         </div>
       </div>
