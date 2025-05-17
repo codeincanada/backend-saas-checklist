@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChecklistProvider, useChecklist } from './contexts/ChecklistContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { CompletionProvider } from './contexts/CompletionContext';
 import { handleAuthCallback } from './utils/auth';
 import Header from './components/Header';
 import Checklist from './components/Checklist';
@@ -14,7 +15,9 @@ const AppContent: React.FC = () => {
     getOverallProgress,
     getSectionProgress, 
     completedSectionIdToAdvanceFrom, 
-    setCompletedSectionIdToAdvanceFrom 
+    setCompletedSectionIdToAdvanceFrom,
+    isLoading,
+    error
   } = useChecklist();
 
   const [activeCategory, setActiveCategory] = useState<string | null>(
@@ -54,6 +57,23 @@ const AppContent: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <main className="py-6 container mx-auto px-4">
+        {/* Loading and Error Indicators */}
+        {isLoading && (
+          <div className="mb-4 p-2 bg-blue-100 text-blue-800 rounded-md flex items-center">
+            <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Syncing your progress...
+          </div>
+        )}
+        
+        {error && (
+          <div className="mb-4 p-2 bg-red-100 text-red-800 rounded-md">
+            {error}
+          </div>
+        )}
+        
         {/* Overall Progress Bar - New Location */}
         <div className="mb-6 w-full md:w-auto"> {/* Adjusted width and margin */}
           <div className="flex justify-between text-sm mb-1 text-gray-700"> {/* Adjusted text color */}
@@ -102,9 +122,11 @@ function App() {
 
   return (
     <AuthProvider>
-      <ChecklistProvider>
-        <AppContent />
-      </ChecklistProvider>
+      <CompletionProvider>
+        <ChecklistProvider>
+          <AppContent />
+        </ChecklistProvider>
+      </CompletionProvider>
     </AuthProvider>
   );
 }
