@@ -67,16 +67,11 @@ export async function githubAuth(request: HttpRequest, context: InvocationContex
         const accessToken = tokenData.access_token;
 
         // Get allowed origins from env variables or use default
-        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || 
-            ['http://localhost:5173', 'https://mellifluous-meringue-b16ddc.netlify.app'];
+        const productionFrontendUrl = 'https://mellifluous-meringue-b16ddc.netlify.app';
+        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [productionFrontendUrl];
         
         // Determine redirect URL with success or error
-        let redirectUrl = request.headers.get('Referer') || allowedOrigins[0];
-        
-        // Check if referer is in allowed origins
-        if (!allowedOrigins.some(origin => redirectUrl.startsWith(origin))) {
-            redirectUrl = allowedOrigins[0]; // Default to first allowed origin
-        }
+        let redirectUrl = productionFrontendUrl; // Always redirect to production
         
         // Create a URL object to handle query params
         const redirectUri = new URL(redirectUrl);
