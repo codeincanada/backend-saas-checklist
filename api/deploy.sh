@@ -51,6 +51,8 @@ if az functionapp show --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXE
         STORAGE_ACCOUNT_NAME=$(echo "$APP_SETTINGS" | sed -n 's/.*AccountName=\([^;]*\);.*/\1/p')
         if [[ -n "$STORAGE_ACCOUNT_NAME" ]]; then
             echo "Using existing storage account: $STORAGE_ACCOUNT_NAME"
+            # Extract account key as well
+            STORAGE_ACCOUNT_KEY=$(echo "$APP_SETTINGS" | sed -n 's/.*AccountKey=\([^;]*\);.*/\1/p')
         else
             echo "Could not parse storage account name from AzureWebJobsStorage."
             STORAGE_ACCOUNT_NAME="" # Ensure it's reset if parsing failed
@@ -72,7 +74,13 @@ if [[ -z "$STORAGE_ACCOUNT_NAME" ]]; then
     STORAGE_ACCOUNT_NAME="${FIXED_STORAGE_NAME_BASE}${GENERATED_STORAGE_SUFFIX}"
     echo "Creating storage account: $STORAGE_ACCOUNT_NAME in $LOCATION..."
     az storage account create --name "$STORAGE_ACCOUNT_NAME" --location "$LOCATION" --resource-group "$FIXED_RESOURCE_GROUP" --sku Standard_LRS --kind StorageV2
+    # Get the storage account key
+    STORAGE_ACCOUNT_KEY=$(az storage account keys list --account-name "$STORAGE_ACCOUNT_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --query "[0].value" -o tsv)
 fi
+
+# Create the UserTaskCompletions table if it doesn't exist
+echo "Ensuring UserTaskCompletions table exists..."
+az storage table create --name "UserTaskCompletions" --account-name "$STORAGE_ACCOUNT_NAME" --account-key "$STORAGE_ACCOUNT_KEY" || true
 
 # Check if Function App exists, create if not
 if ! az functionapp show --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --query name --output tsv 2>/dev/null; then
@@ -89,7 +97,9 @@ az functionapp config appsettings set --name "$FIXED_FUNCTION_APP_NAME" --resour
   "ALLOWED_ORIGINS=https://mellifluous-meringue-b16ddc.netlify.app" \
   "WEBSITE_NODE_DEFAULT_VERSION=~22" \
   "FUNCTIONS_EXTENSION_VERSION=~4" \
-  "FUNCTIONS_WORKER_RUNTIME=node"
+  "FUNCTIONS_WORKER_RUNTIME=node" \
+  "AZURE_STORAGE_ACCOUNT_NAME=$STORAGE_ACCOUNT_NAME" \
+  "AZURE_STORAGE_ACCOUNT_KEY=$STORAGE_ACCOUNT_KEY"
 
 echo "Configuring CORS for $FIXED_FUNCTION_APP_NAME..."
 az functionapp cors add --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --allowed-origins "https://mellifluous-meringue-b16ddc.netlify.app" # This command adds, it doesn't overwrite, which is usually fine.
@@ -114,7 +124,14 @@ echo ""
 echo "Ensure your GitHub OAuth App callback URL is: $FUNCTION_URL"
 
 echo "Ensuring FUNCTIONS_WORKER_RUNTIME is set to node..."
-az functionapp config appsettings set -g "$FIXED_RESOURCE_GROUP" -n "$FIXED_FUNCTION_APP_NAME" --settings FUNCTIONS_WORKER_RUNTIME=node WEBSITE_NODE_DEFAULT_VERSION="~22" GITHUB_CLIENT_ID="Ov23lid8MA0Pb0EStu9w" GITHUB_CLIENT_SECRET="ff39a41694e61ce0f8f8a2728d08241bd97cc04e" ALLOWED_ORIGINS="https://mellifluous-meringue-b16ddc.netlify.app" > /dev/null
+az functionapp config appsettings set -g "$FIXED_RESOURCE_GROUP" -n "$FIXED_FUNCTION_APP_NAME" --settings \
+  FUNCTIONS_WORKER_RUNTIME=node \
+  WEBSITE_NODE_DEFAULT_VERSION="~22" \
+  GITHUB_CLIENT_ID="Ov23lid8MA0Pb0EStu9w" \
+  GITHUB_CLIENT_SECRET="ff39a41694e61ce0f8f8a2728d08241bd97cc04e" \
+  ALLOWED_ORIGINS="https://mellifluous-meringue-b16ddc.netlify.app" \
+  AZURE_STORAGE_ACCOUNT_NAME="$STORAGE_ACCOUNT_NAME" \
+  AZURE_STORAGE_ACCOUNT_KEY="$STORAGE_ACCOUNT_KEY" > /dev/null
 if [ $? -ne 0 ]; then
   echo "Failed to update app settings for $FIXED_FUNCTION_APP_NAME. Exiting."
   exit 1
