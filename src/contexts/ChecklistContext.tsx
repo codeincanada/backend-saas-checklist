@@ -26,9 +26,8 @@ interface ChecklistContextType {
   saveCurrentProgress: () => Promise<void>;
   loadChecklists: () => Promise<void>;
   availableChecklists: Array<{checklistName: string, lastUpdatedAt: string}>;
-  currentChecklistId: string;
+  currentChecklistId: string | undefined;
   setCurrentChecklistId: (id: string) => void;
-  deleteCurrentChecklist: (checklistIdToDelete?: string) => Promise<void>;
   clearAllData: (options?: { preserveChecklistId?: boolean }) => void;
   toastMessage: string | null;
   clearToastMessage: () => void;
@@ -50,9 +49,6 @@ interface ChecklistProviderProps {
   children: ReactNode;
 }
 
-// Default checklist identifier to use with the API
-const DEFAULT_CHECKLIST_ID = 'default-checklist';
-
 export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -65,7 +61,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
   const [nextFocusItemId, setNextFocusItemId] = useState<string | null>(null);
   const [completedSectionIdToAdvanceFrom, setCompletedSectionIdToAdvanceFrom] = useState<string | null>(null);
   const [availableChecklists, setAvailableChecklists] = useState<Array<{checklistName: string, lastUpdatedAt: string}>>([]);
-  const [currentChecklistId, setCurrentChecklistId] = useState<string>(DEFAULT_CHECKLIST_ID);
+  const [currentChecklistId, setCurrentChecklistId] = useState<string>();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const clearError = () => {
@@ -282,7 +278,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       const formattedChecklists = [];
       
       // If we have a specific checklist selected, load its data
-      if (currentChecklistId !== DEFAULT_CHECKLIST_ID && checklistIds.includes(currentChecklistId)) {
+      if (!!currentChecklistId && checklistIds.includes(currentChecklistId)) {
         const checklist = await getChecklist(currentChecklistId);
         
         if (checklist) {
@@ -317,7 +313,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
             });
           }
         }
-      } else if (checklistIds.length > 0 && currentChecklistId === DEFAULT_CHECKLIST_ID) {
+      } else if (checklistIds.length > 0) {
         // If we're on the default checklist but have others available,
         // just list them without loading
         for (const id of checklistIds) {
@@ -364,7 +360,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
             });
           }
         }
-      } else if (currentChecklistId !== DEFAULT_CHECKLIST_ID && checklistIds.length === 0) {
+      } else if (!!currentChecklistId && checklistIds.length === 0) {
         // Create an empty checklist when selecting a new ID that doesn't exist yet
         setSections(initialSections);
         
@@ -400,6 +396,13 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       // Console log to debug checklist ID issues
       console.log('Saving checklist with ID:', currentChecklistId);
       
+      // Check if we have a valid checklist ID to save with
+      if (!currentChecklistId) {
+        setError('Cannot save: No checklist ID specified');
+        console.error('Cannot save: No checklist ID specified');
+        return;
+      }
+      
       // Always include at least an empty object so new checklists are created
       // even if they don't have any checked items yet
       const checklistData = {
@@ -423,6 +426,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       });
       
       // Make a local copy of the ID to ensure we use the current value
+      // We already checked that currentChecklistId is defined above
       const idToSave = currentChecklistId;
       console.log('Using local copy of ID to ensure consistency:', idToSave);
       
@@ -439,47 +443,6 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     } catch (err) {
       setError('Failed to save checklist. Your progress is saved locally.');
       console.error('Error saving checklist:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Delete the current checklist
-  const deleteCurrentChecklist = async (checklistIdToDelete?: string) => {
-    // Use the provided checklistId if available, otherwise use the currentChecklistId
-    const checklistToDelete = checklistIdToDelete || currentChecklistId;
-    
-    console.log(`deleteCurrentChecklist called with: ${checklistIdToDelete}, using: ${checklistToDelete}`);
-    console.log('Authentication state:', { isAuthenticated, user });
-    
-    if (!isAuthenticated) {
-      console.log('Cannot delete: not authenticated');
-      return;
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      console.log(`Attempting to delete checklist: ${checklistToDelete}`);
-      await deleteChecklist(checklistToDelete);
-      
-      // If we're deleting the current checklist, reset to default
-      if (checklistToDelete === currentChecklistId) {
-        console.log('Deleted the current checklist, resetting to default');
-        setCurrentChecklistId(DEFAULT_CHECKLIST_ID);
-        setSections(initialSections);
-      }
-      
-      // Refresh list of available checklists
-      console.log('Refreshing checklists list');
-      await loadChecklists();
-      
-      setToastMessage('Checklist deleted successfully');
-    } catch (err) {
-      console.error('Error in deleteCurrentChecklist:', err);
-      setError('Failed to delete checklist.');
-      console.error('Error deleting checklist:', err);
     } finally {
       setIsLoading(false);
     }
@@ -584,7 +547,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     
     // Only reset the checklist ID if not explicitly asked to preserve it
     if (!options?.preserveChecklistId) {
-      setCurrentChecklistId(DEFAULT_CHECKLIST_ID);
+      setCurrentChecklistId('');
     }
     
     localStorage.removeItem('microservice-checklist');
@@ -608,7 +571,6 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       availableChecklists,
       currentChecklistId,
       setCurrentChecklistId,
-      deleteCurrentChecklist,
       clearAllData,
       toastMessage,
       clearToastMessage,
