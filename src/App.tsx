@@ -20,15 +20,18 @@ const AppContent: React.FC = () => {
     setCompletedSectionIdToAdvanceFrom,
     isLoading,
     error,
+    clearError,
     toastMessage,
     clearToastMessage,
     availableChecklists,
     currentChecklistId,
     setCurrentChecklistId,
     saveCurrentProgress,
-    deleteCurrentChecklist,
+    loadChecklists,
+    saveChecklist,
+    deleteChecklist,
     clearAllData,
-    loadChecklists
+    createChecklist
   } = useChecklist();
   
   const { authError, clearAuthError, isAuthenticated } = useAuth();
@@ -70,34 +73,20 @@ const AppContent: React.FC = () => {
 
   const createNewChecklist = async () => {
     if (!newChecklistName.trim()) return;
-    
-    // Store the new checklist name
     const newName = newChecklistName.trim();
-    console.log('Creating new checklist with name:', newName);
-    
+    console.log('Attempting to create new checklist with name via context:', newName);
+
     try {
-      // First set the new checklist ID
-      setCurrentChecklistId(newName);
+      await createChecklist(newName); // Use the new context function
       
-      // Clear existing data while preserving the checklist ID
-      clearAllData({ preserveChecklistId: true });
-      
-      // Create a new empty checklist by saving current progress with the new ID
-      // Add a small delay to ensure state updates have been processed
-      setTimeout(async () => {
-        console.log('Saving with ID:', newName);
-        try {
-          await saveCurrentProgress();
-          
-          // Clear input and close dropdown
-          setNewChecklistName('');
-          setShowChecklistsDropdown(false);
-        } catch (error) {
-          console.error('Error saving new checklist after delay:', error);
-        }
-      }, 500);
+      // UI updates after successful creation by context function
+      setNewChecklistName('');
+      setShowChecklistsDropdown(false);
+      // Toast messages and loading states are handled by the context function
     } catch (error) {
-      console.error('Error creating new checklist:', error);
+      // Error is already set in context by createChecklist, App.tsx can log or alert if needed
+      console.error('Error caught in App.tsx from createNewChecklist:', error);
+      // alert('Failed to create checklist. Check console for details.'); // Context already sets error state for UI
     }
   };
 
@@ -197,7 +186,7 @@ const AppContent: React.FC = () => {
                                   console.log(`Attempting to delete checklist: ${checklist.checklistName}`);
                                   
                                   // Use the explicit checklist ID parameter
-                                  await deleteCurrentChecklist(checklist.checklistName);
+                                  await deleteChecklist(checklist.checklistName);
                                   
                                   console.log(`Successfully requested deletion of: ${checklist.checklistName}`);
                                   

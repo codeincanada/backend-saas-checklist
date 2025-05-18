@@ -38,6 +38,7 @@ interface ChecklistContextType {
   getChecklistIds: () => Promise<string[]>;
   getChecklist: (checklistName: string) => Promise<{checklistName: string, content: ChecklistContent, lastUpdatedAt: string} | null>;
   deleteChecklist: (checklistName: string) => Promise<void>;
+  createChecklist: (newChecklistName: string) => Promise<void>;
   isLoading: boolean;
   error: string | null;
   clearError: () => void;
@@ -263,6 +264,68 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     }
   };
 
+  // Function to create a new checklist
+  const createChecklist = async (newChecklistName: string) => {
+    if (!isAuthenticated || !user) {
+      const authErrorMsg = 'You must be logged in to create checklists';
+      setError(authErrorMsg);
+      throw new Error(authErrorMsg);
+    }
+    if (!newChecklistName.trim()) {
+      const nameErrorMsg = 'Checklist name cannot be empty';
+      setError(nameErrorMsg);
+      throw new Error(nameErrorMsg);
+    }
+
+    setIsLoading(true);
+    setError(null);
+    const trimmedNewName = newChecklistName.trim();
+
+    try {
+      const initialContent: ChecklistContent = {
+        sections: initialSections.reduce((acc, section) => {
+          acc[section.id] = {
+            items: section.items.reduce((itemAcc, item) => {
+              itemAcc[item.id] = false; // All items start unchecked
+              return itemAcc;
+            }, {} as Record<string, boolean>)
+          };
+          return acc;
+        }, {} as Record<string, { items: Record<string, boolean> }>),
+        lastUpdatedAt: new Date().toISOString()
+      };
+
+      // First, save the new checklist to the backend
+      await saveChecklist(trimmedNewName, initialContent);
+
+      // Then, set it as the current checklist
+      // This will also trigger loadChecklists via useEffect to refresh data
+      setCurrentChecklistId(trimmedNewName);
+      
+      // Manually ensure sections are reset to initial state for the new checklist display
+      // as loadChecklists might take time or rely on currentChecklistId already being set before it runs.
+      // setCurrentChecklistId above will trigger loadChecklists, which should handle setting sections.
+      // However, to be safe and provide immediate feedback that it's a *new* list:
+      setSections(initialSections);
+
+
+      setToastMessage(`Successfully created checklist: ${trimmedNewName}`);
+      setTimeout(() => clearToastMessage(), 3000);
+      
+      // Refresh the list of available checklists as saveChecklist doesn't do it.
+      // And setCurrentChecklistId's triggered loadChecklists might not have updated availableChecklists yet.
+      await loadChecklists(); 
+
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create checklist';
+      setError(errorMsg);
+      // console.error('Error in createChecklist:', err); // Already logged by saveChecklist if it throws
+      throw new Error(errorMsg); // Re-throw so App.tsx can also catch if needed
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Load available checklists from the API
   const loadChecklists = async () => {
     if (!isAuthenticated) return;
@@ -403,6 +466,10 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
         return;
       }
       
+      // Force the currentChecklistId to be a local variable to avoid race conditions
+      const idToSave = currentChecklistId;
+      console.log('Using saved ID to avoid race conditions:', idToSave);
+      
       // Always include at least an empty object so new checklists are created
       // even if they don't have any checked items yet
       const checklistData = {
@@ -420,15 +487,10 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       };
       
       console.log('Preparing to save checklist with data:', {
-        checklistId: currentChecklistId,
+        checklistId: idToSave,
         dataSize: JSON.stringify(checklistData).length,
         timestamp: checklistData.lastUpdatedAt
       });
-      
-      // Make a local copy of the ID to ensure we use the current value
-      // We already checked that currentChecklistId is defined above
-      const idToSave = currentChecklistId;
-      console.log('Using local copy of ID to ensure consistency:', idToSave);
       
       await saveChecklist(idToSave, checklistData);
       
@@ -595,6 +657,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       getChecklistIds,
       getChecklist,
       deleteChecklist,
+      createChecklist,
       isLoading,
       error,
       clearError
