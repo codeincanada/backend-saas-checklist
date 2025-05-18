@@ -88,9 +88,31 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       
       setAvailableCompletions(formattedCompletions);
       
-      // If we have completions and none is currently selected, load the most recent one
-      if (formattedCompletions.length > 0 && currentCompletionId === DEFAULT_COMPLETION_ID) {
-        // Sort by date to find the most recent
+      // Find the checklist that matches our current ID
+      const currentCompletionData = completions.find(c => c.taskIdentifier === currentCompletionId);
+      
+      if (currentCompletionData && currentCompletionData.completionData.sections) {
+        // Convert the stored format back to our sections array
+        const loadedSections = [...initialSections];
+        
+        Object.entries(currentCompletionData.completionData.sections).forEach(([sectionId, sectionData]) => {
+          const sectionIndex = loadedSections.findIndex(s => s.id === sectionId);
+          if (sectionIndex !== -1) {
+            const items = loadedSections[sectionIndex].items.map(item => ({
+              ...item,
+              checked: sectionData.items[item.id] || false
+            }));
+            
+            loadedSections[sectionIndex] = {
+              ...loadedSections[sectionIndex],
+              items
+            };
+          }
+        });
+        
+        setSections(loadedSections);
+      } else if (formattedCompletions.length > 0 && !formattedCompletions.some(c => c.taskIdentifier === currentCompletionId)) {
+        // If our current ID doesn't exist in the loaded completions, load the most recent one
         const sortedCompletions = [...formattedCompletions].sort(
           (a, b) => new Date(b.lastUpdatedAt).getTime() - new Date(a.lastUpdatedAt).getTime()
         );
@@ -278,14 +300,9 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
 
   // Reset checklist to initial state and clear localStorage
   const clearAllData = () => {
-    // Reset to default completion ID
-    setCurrentCompletionId(DEFAULT_COMPLETION_ID);
-    
-    // Reset sections to initial state
-    setSections(initialSections);
-    
-    // Clear localStorage
-    localStorage.removeItem('microservice-checklist');
+    // Reset sections to initial state - create a fresh deep copy
+    const freshSections = JSON.parse(JSON.stringify(initialSections));
+    setSections(freshSections);
     
     // Reset other state
     setNextFocusItemId(null);

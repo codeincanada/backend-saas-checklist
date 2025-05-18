@@ -10,18 +10,30 @@ const Header: React.FC = () => {
     availableCompletions, 
     currentCompletionId, 
     setCurrentCompletionId,
-    deleteCurrentCompletion
+    deleteCurrentCompletion,
+    clearAllData
   } = useChecklist();
   const { isAuthenticated } = useAuth();
   const [showCompletions, setShowCompletions] = useState(false);
   const [newTaskName, setNewTaskName] = useState('');
   
-  const handleCreateNew = () => {
+  const handleCreateNew = async () => {
     if (newTaskName.trim()) {
+      // Clear existing data to start fresh with the new checklist
+      clearAllData();
+      
+      // Set the new checklist name
       setCurrentCompletionId(newTaskName.trim());
+      
+      // Save the new checklist with this name
+      await saveCurrentProgress();
+      
+      // Reload the list of completions to show the new one
+      await loadCompletions();
+      
+      // Clear the input and close the dropdown
       setNewTaskName('');
       setShowCompletions(false);
-      saveCurrentProgress();
     }
   };
 
@@ -65,7 +77,13 @@ const Header: React.FC = () => {
                 </button>
                 
                 <button
-                  onClick={() => setShowCompletions(!showCompletions)}
+                  onClick={() => {
+                    setShowCompletions(!showCompletions);
+                    if (!showCompletions) {
+                      // Refresh the list of completions when opening the dropdown
+                      loadCompletions();
+                    }
+                  }}
                   className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 rounded transition-colors"
                   title="Manage checklists"
                 >
