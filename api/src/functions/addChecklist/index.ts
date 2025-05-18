@@ -36,11 +36,14 @@ const addChecklist = async (
   context: InvocationContext
 ): Promise<HttpResponseInit> => {
   context.log("HTTP trigger function processed a request for addChecklist.");
+  context.log(`Request Headers: ${JSON.stringify(Object.fromEntries(request.headers))}`);
 
   // Get the authenticated user ID from header
   const userId = request.headers.get("x-github-user-id");
+  context.log(`User ID from header: ${userId}`);
 
   if (!userId) {
+    context.log("Authentication required - missing x-github-user-id header");
     return {
       status: 401,
       body: JSON.stringify({ error: "Authentication required." }),
@@ -54,8 +57,10 @@ const addChecklist = async (
     // Parse the request body
     const requestBody = await request.json() as ChecklistRequestBody;
     const { checklistName, content } = requestBody;
+    context.log(`Request to add checklist: ${checklistName} for user: ${userId}`);
 
     if (!checklistName) {
+      context.log("Missing checklist name in request");
       return {
         status: 400,
         body: JSON.stringify({ error: "checklistName is required." }),
@@ -66,6 +71,7 @@ const addChecklist = async (
     }
 
     if (!content) {
+      context.log("Missing content in request");
       return {
         status: 400,
         body: JSON.stringify({ error: "content is required." }),
@@ -76,14 +82,19 @@ const addChecklist = async (
     }
 
     const tableClient = getTableClient();
+    context.log(`Checking if checklist "${checklistName}" already exists for user: ${userId}`);
     
     // Check if a checklist with the same name already exists for this user
     try {
       await tableClient.getEntity(userId, checklistName);
       // If successful, a checklist with this name already exists
+      context.log(`Checklist "${checklistName}" already exists for user: ${userId}`);
       return {
         status: 409,
-        body: JSON.stringify({ error: "A checklist with this name already exists." }),
+        body: JSON.stringify({ 
+          error: "A checklist with this name already exists.",
+          details: { userId, checklistName }
+        }),
         headers: {
           "Content-Type": "application/json"
         }
@@ -91,12 +102,15 @@ const addChecklist = async (
     } catch (error) {
       // Entity not found - this is expected and allows us to continue
       if ((error as any).statusCode !== 404) {
+        context.log(`Unexpected error checking for existing checklist: ${JSON.stringify(error)}`);
         throw error; // Re-throw if it's some other error
       }
+      context.log(`Confirmed checklist "${checklistName}" does not exist for user: ${userId}`);
     }
 
     // Current timestamp in ISO format for lastUpdated
     const now = new Date().toISOString();
+    context.log(`Creating new checklist "${checklistName}" for user: ${userId}`);
 
     // Store the checklist
     await tableClient.createEntity({
@@ -105,6 +119,7 @@ const addChecklist = async (
       content: JSON.stringify(content),
       customLastUpdatedAt: now
     });
+    context.log(`Successfully created checklist "${checklistName}" for user: ${userId}`);
 
     return {
       status: 201,

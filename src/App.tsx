@@ -83,12 +83,19 @@ const AppContent: React.FC = () => {
       clearAllData({ preserveChecklistId: true });
       
       // Create a new empty checklist by saving current progress with the new ID
-      console.log('Saving with ID:', newName);
-      await saveCurrentProgress();
-      
-      // Clear input and close dropdown
-      setNewChecklistName('');
-      setShowChecklistsDropdown(false);
+      // Add a small delay to ensure state updates have been processed
+      setTimeout(async () => {
+        console.log('Saving with ID:', newName);
+        try {
+          await saveCurrentProgress();
+          
+          // Clear input and close dropdown
+          setNewChecklistName('');
+          setShowChecklistsDropdown(false);
+        } catch (error) {
+          console.error('Error saving new checklist after delay:', error);
+        }
+      }, 500);
     } catch (error) {
       console.error('Error creating new checklist:', error);
     }

@@ -416,13 +416,23 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
         lastUpdatedAt: new Date().toISOString()
       };
       
-      await saveChecklist(currentChecklistId, checklistData);
+      console.log('Preparing to save checklist with data:', {
+        checklistId: currentChecklistId,
+        dataSize: JSON.stringify(checklistData).length,
+        timestamp: checklistData.lastUpdatedAt
+      });
+      
+      // Make a local copy of the ID to ensure we use the current value
+      const idToSave = currentChecklistId;
+      console.log('Using local copy of ID to ensure consistency:', idToSave);
+      
+      await saveChecklist(idToSave, checklistData);
       
       // Refresh list of available checklists
       await loadChecklists();
       
       // Show success message
-      setToastMessage('Progress saved successfully');
+      setToastMessage(`Progress saved successfully for checklist: ${idToSave}`);
       
       // Clear message after 3 seconds
       setTimeout(() => clearToastMessage(), 3000);
