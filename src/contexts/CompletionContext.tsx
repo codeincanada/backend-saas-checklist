@@ -74,7 +74,13 @@ export const CompletionProvider: React.FC<{ children: ReactNode }> = ({ children
     setError(null);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/completions?githubUserId=${encodeURIComponent(user.login)}`);
+      const response = await fetch(`${API_BASE_URL}/completions?githubUserId=${encodeURIComponent(user.login)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-github-user-id': user.login
+        }
+      });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
@@ -104,7 +110,13 @@ export const CompletionProvider: React.FC<{ children: ReactNode }> = ({ children
     try {
       const response = await fetch(
         `${API_BASE_URL}/completion?githubUserId=${encodeURIComponent(user.login)}&taskIdentifier=${encodeURIComponent(taskIdentifier)}`, 
-        { method: 'DELETE' }
+        { 
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-github-user-id': user.login
+          }
+        }
       );
       
       if (!response.ok) {

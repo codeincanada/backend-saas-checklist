@@ -21,10 +21,16 @@ const AppContent: React.FC = () => {
     isLoading,
     error,
     toastMessage,
-    clearToastMessage
+    clearToastMessage,
+    availableCompletions,
+    currentCompletionId,
+    setCurrentCompletionId,
+    saveCurrentProgress
   } = useChecklist();
   
-  const { authError, clearAuthError } = useAuth();
+  const { authError, clearAuthError, isAuthenticated } = useAuth();
+  const [showChecklistsDropdown, setShowChecklistsDropdown] = useState(false);
+  const [newChecklistName, setNewChecklistName] = useState('');
 
   const [activeCategory, setActiveCategory] = useState<string | null>(
     allCategoriesData.length > 0 ? allCategoriesData[0].id : null
@@ -59,6 +65,20 @@ const AppContent: React.FC = () => {
     setActiveCategory(categoryId);
   };
 
+  const createNewChecklist = async () => {
+    if (!newChecklistName.trim()) return;
+    
+    // Set new checklist ID to be used by the API
+    setCurrentCompletionId(newChecklistName.trim());
+    
+    // Create a new empty checklist by saving current progress with the new ID
+    await saveCurrentProgress();
+    
+    // Clear input and close dropdown
+    setNewChecklistName('');
+    setShowChecklistsDropdown(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {authError && (
@@ -79,6 +99,83 @@ const AppContent: React.FC = () => {
       
       <Header />
       <main className="py-6 container mx-auto px-4 pb-24">
+        {/* Checklists Management */}
+        {isAuthenticated && (
+          <div className="mb-4 relative">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold text-indigo-700">Backend Microservice Checklist</h1>
+              <div className="relative">
+                <button 
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md flex items-center"
+                  onClick={() => setShowChecklistsDropdown(!showChecklistsDropdown)}
+                >
+                  <span>Checklists</span>
+                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {showChecklistsDropdown && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-md z-50">
+                    <div className="p-3 border-b border-gray-200">
+                      <h3 className="font-medium text-gray-700">Your Checklists</h3>
+                    </div>
+                    
+                    <div className="max-h-64 overflow-y-auto">
+                      {availableCompletions.map(completion => (
+                        <button
+                          key={completion.taskIdentifier}
+                          className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${
+                            currentCompletionId === completion.taskIdentifier ? 'bg-indigo-50 text-indigo-700' : ''
+                          }`}
+                          onClick={() => {
+                            setCurrentCompletionId(completion.taskIdentifier);
+                            setShowChecklistsDropdown(false);
+                          }}
+                        >
+                          <div className="font-medium">{completion.taskIdentifier}</div>
+                          <div className="text-xs text-gray-500">
+                            Last updated: {new Date(completion.lastUpdatedAt).toLocaleString()}
+                          </div>
+                        </button>
+                      ))}
+                      
+                      {availableCompletions.length === 0 && (
+                        <div className="px-4 py-2 text-gray-500 italic">No checklists yet</div>
+                      )}
+                    </div>
+                    
+                    <div className="p-3 border-t border-gray-200">
+                      <div className="flex">
+                        <input
+                          type="text"
+                          className="flex-1 border border-gray-300 rounded-l-md px-3 py-2 text-sm"
+                          placeholder="New checklist name..."
+                          value={newChecklistName}
+                          onChange={(e) => setNewChecklistName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              createNewChecklist();
+                            }
+                          }}
+                        />
+                        <button
+                          className="bg-indigo-600 text-white rounded-r-md px-3"
+                          onClick={createNewChecklist}
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Loading and Error Indicators */}
         {isLoading && (
           <div className="mb-4 p-2 bg-blue-100 text-blue-800 rounded-md flex items-center">

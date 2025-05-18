@@ -37,7 +37,7 @@ const DEFAULT_COMPLETION_ID = 'default-checklist';
 
 export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }) => {
   // Get authentication and completion context
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { saveCompletion, getCompletions, deleteCompletion, isLoading: apiLoading, error: apiError } = useCompletion();
 
   const [sections, setSections] = useState<ChecklistSection[]>(() => {
@@ -138,6 +138,14 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
           
           setSections(loadedSections);
         }
+      } else if (currentCompletionId !== DEFAULT_COMPLETION_ID && formattedCompletions.length === 0) {
+        // Create an empty checklist when selecting a new ID that doesn't exist yet
+        setSections(initialSections);
+        
+        // Create the new empty checklist in the backend
+        await saveCurrentProgress();
+        
+        setToastMessage(`Created new checklist: ${currentCompletionId}`);
       }
     } catch (err) {
       setError('Failed to load completions. Using local data.');
@@ -175,6 +183,12 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       
       // Refresh list of available completions
       await loadCompletions();
+      
+      // Show success message
+      setToastMessage('Progress saved successfully');
+      
+      // Clear message after 3 seconds
+      setTimeout(() => clearToastMessage(), 3000);
     } catch (err) {
       setError('Failed to save completion. Your progress is saved locally.');
       console.error('Error saving completion:', err);
@@ -201,9 +215,11 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       
       // Refresh list of available completions
       await loadCompletions();
+      
+      setToastMessage('Checklist deleted successfully');
     } catch (err) {
-      setError('Failed to delete completion.');
-      console.error('Error deleting completion:', err);
+      setError('Failed to delete checklist.');
+      console.error('Error deleting checklist:', err);
     } finally {
       setIsLoading(false);
     }
