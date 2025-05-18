@@ -23,7 +23,7 @@ An interactive checklist application for backend microservice development best p
    - Fill in the details:
      - Application name: Backend Microservice Checklist
      - Homepage URL: https://checklist.codein.ca
-     - Authorization callback URL: https://github-auth-function-20556.azurewebsites.net/api/githubAuth
+     - Authorization callback URL: https://checklist-api.codein.ca/api/githubAuth
    - Register the application
    - Copy the Client ID and Client Secret
 

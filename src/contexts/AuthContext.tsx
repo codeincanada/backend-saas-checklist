@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Octokit } from '@octokit/rest';
 
 // Define the Azure Function URL with the actual deployment URL
-const AZURE_FUNCTION_URL = 'https://github-auth-function-20556.azurewebsites.net/api/githubauth';
+const AZURE_FUNCTION_URL = 'https://checklist-api.codein.ca/api/githubauth';
 
 interface AuthContextType {
   isAuthenticated: boolean;
