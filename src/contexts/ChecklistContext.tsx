@@ -438,8 +438,8 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       
       // If we're deleting the current checklist, reset to default
       if (checklistToDelete === currentChecklistId) {
-        setCurrentChecklistId(DEFAULT_CHECKLIST_ID);
-        setSections(initialSections);
+      setCurrentChecklistId(DEFAULT_CHECKLIST_ID);
+      setSections(initialSections);
       }
       
       // Refresh list of available checklists
