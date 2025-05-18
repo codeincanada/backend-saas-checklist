@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { TableClient, AzureNamedKeyCredential, TableEntity } from "@azure/data-tables";
 
-// These should be configured in your Function App\'s settings
+// These should be configured in your Function App's settings
 const storageAccountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
 const storageAccountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
 const tableName = "Checklists"; // Assuming the same table as updateChecklist
@@ -35,7 +35,7 @@ interface SetChecklistItemStatusRequestBody {
 
 // Define a type for the entity stored in Azure Table
 // It includes the partitionKey, rowKey, and the content string, plus a timestamp
-interface ChecklistTableEntity extends TableEntity<ChecklistContent> {
+interface ChecklistTableEntity extends TableEntity { // Removed <ChecklistContent> as TableEntity is generic already. content is defined below.
   content: string; // JSON string of ChecklistContent
   customLastUpdatedAt?: string; // Matches the field used in updateChecklist
 }
@@ -60,7 +60,7 @@ const setChecklistItemStatus = async (
     const requestBody = await request.json() as SetChecklistItemStatusRequestBody;
     const { checklistName, sectionId, itemId, isChecked } = requestBody;
 
-    if (!checklistName || !sectionId || !itemId || typeof isChecked !== \'boolean\') {
+    if (!checklistName || !sectionId || !itemId || typeof isChecked !== 'boolean') { // Corrected: 'boolean'
       return {
         status: 400,
         body: JSON.stringify({ error: "Missing required fields: checklistName, sectionId, itemId, isChecked." }),
@@ -72,32 +72,33 @@ const setChecklistItemStatus = async (
     let existingEntity: ChecklistTableEntity;
 
     try {
-      // Azure Table SDK getEntity returns an error if not found, so we cast to the expected type.
-      // The SDK might return a slightly different shape, so we ensure \'content\' is what we expect.
-      const result = await tableClient.getEntity<Pick<ChecklistTableEntity, \'partitionKey\' | \'rowKey\' | \'content\' | \'customLastUpdatedAt\'>>(userId, checklistName);
-      existingEntity = result as ChecklistTableEntity; // Cast after successful retrieval
-      if (typeof existingEntity.content !== \'string\') {
+      // Azure Table SDK getEntity returns an error if not found.
+      // The SDK might return a slightly different shape, so we ensure 'content' is what we expect.
+      // Pick is useful if we want to be more specific, but direct casting is also common.
+      const result = await tableClient.getEntity<ChecklistTableEntity>(userId, checklistName); // Simplified generic
+      existingEntity = result; // Cast after successful retrieval
+      
+      // Ensure content is a string, initialize if not (defensive)
+      if (typeof existingEntity.content !== 'string') {
          context.log(`Warning: content for ${checklistName} is not a string or is missing. Found:`, existingEntity.content);
-         // Initialize default content structure if it\'s entirely missing or wrong type
-         // This case should ideally not happen if checklists are created correctly.
          existingEntity.content = JSON.stringify({ sections: {}, lastUpdatedAt: new Date().toISOString() });
       }
     } catch (error: any) {
       if (error.statusCode === 404) {
         return {
           status: 404,
-          body: JSON.stringify({ error: `Checklist \'${checklistName}\' not found for user.` }),
+          body: JSON.stringify({ error: `Checklist '${checklistName}' not found for user.` }), // Corrected: template literal with single quotes
           headers: { "Content-Type": "application/json" },
         };
       }
       context.log(`Error fetching entity: ${error.message}`);
-      throw error;
+      throw error; // Re-throw other errors
     }
 
     let checklistContent: ChecklistContent;
     try {
         checklistContent = JSON.parse(existingEntity.content);
-    } catch (parseError) {
+    } catch (parseError: any) { // Added :any for parseError
         context.log(`Error parsing checklist content for ${checklistName}: ${parseError.message}. Content was:`, existingEntity.content);
         return {
             status: 500,
@@ -106,15 +107,13 @@ const setChecklistItemStatus = async (
         };
     }
 
-
-    // Ensure sections and items objects exist
+    // Ensure sections and items objects exist for safe assignment
     if (!checklistContent.sections) {
       checklistContent.sections = {};
     }
     if (!checklistContent.sections[sectionId]) {
       checklistContent.sections[sectionId] = { items: {} };
-    }
-    if (!checklistContent.sections[sectionId].items) {
+    } else if (!checklistContent.sections[sectionId].items) { // Added else if to prevent overwriting items if section exists
       checklistContent.sections[sectionId].items = {};
     }
 
@@ -122,14 +121,16 @@ const setChecklistItemStatus = async (
     const now = new Date().toISOString();
     checklistContent.lastUpdatedAt = now;
 
-    const updatedEntity: ChecklistTableEntity = {
+    // Fields for updateEntity must match the actual entity structure expected by the SDK.
+    // We're updating specific fields of an existing entity.
+    const entityToUpdate: Partial<ChecklistTableEntity> & { partitionKey: string; rowKey: string } = {
       partitionKey: userId,
       rowKey: checklistName,
       content: JSON.stringify(checklistContent),
-      customLastUpdatedAt: now, // Mirroring the field used in updateChecklist
+      customLastUpdatedAt: now,
     };
 
-    await tableClient.updateEntity(updatedEntity, "Replace"); // "Replace" to overwrite
+    await tableClient.updateEntity(entityToUpdate, "Replace");
 
     return {
       status: 200,
@@ -149,9 +150,9 @@ const setChecklistItemStatus = async (
   }
 };
 
-app.http(\'setChecklistItemStatus\', {
-  methods: [\'POST\', \'PUT\'], // Using POST as it creates/updates a sub-resource status
-  route: \'checklist/item-status\', // New route
-  authLevel: \'anonymous\', // Assuming similar auth handling as updateChecklist
+app.http('setChecklistItemStatus', { // Corrected quotes
+  methods: ['POST', 'PUT'],       // Corrected quotes
+  route: 'checklist/item-status',  // Corrected quotes
+  authLevel: 'anonymous',          // Corrected quotes
   handler: setChecklistItemStatus
 }); 
