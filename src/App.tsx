@@ -185,7 +185,8 @@ const AppContent: React.FC = () => {
                             onClick={(e) => {
                               e.stopPropagation();
                               if (window.confirm('Are you sure you want to delete this checklist?')) {
-                                deleteCurrentChecklist();
+                                // Use the explicit checklist ID parameter
+                                deleteCurrentChecklist(checklist.checklistName);
                               }
                             }}
                             className="p-1 text-red-500 hover:text-red-700 rounded"

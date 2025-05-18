@@ -28,7 +28,7 @@ interface ChecklistContextType {
   availableChecklists: Array<{checklistName: string, lastUpdatedAt: string}>;
   currentChecklistId: string;
   setCurrentChecklistId: (id: string) => void;
-  deleteCurrentChecklist: () => Promise<void>;
+  deleteCurrentChecklist: (checklistIdToDelete?: string) => Promise<void>;
   clearAllData: (options?: { preserveChecklistId?: boolean }) => void;
   toastMessage: string | null;
   clearToastMessage: () => void;
@@ -424,20 +424,23 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
   };
 
   // Delete the current checklist
-  const deleteCurrentChecklist = async () => {
-    if (!isAuthenticated || currentChecklistId === DEFAULT_CHECKLIST_ID) return;
+  const deleteCurrentChecklist = async (checklistIdToDelete?: string) => {
+    // Use the provided checklistId if available, otherwise use the currentChecklistId
+    const checklistToDelete = checklistIdToDelete || currentChecklistId;
+    
+    if (!isAuthenticated || checklistToDelete === DEFAULT_CHECKLIST_ID) return;
     
     setIsLoading(true);
     setError(null);
     
     try {
-      await deleteChecklist(currentChecklistId);
+      await deleteChecklist(checklistToDelete);
       
-      // Reset to default checklist
-      setCurrentChecklistId(DEFAULT_CHECKLIST_ID);
-      
-      // Reset sections to initial state
-      setSections(initialSections);
+      // If we're deleting the current checklist, reset to default
+      if (checklistToDelete === currentChecklistId) {
+        setCurrentChecklistId(DEFAULT_CHECKLIST_ID);
+        setSections(initialSections);
+      }
       
       // Refresh list of available checklists
       await loadChecklists();
