@@ -8,7 +8,7 @@ import CategoryTabs from './components/CategoryTabs';
 import Toast from './components/Toast';
 import { sections as allCategoriesData } from './utils/data';
 import { handleAuthCallback } from './utils/auth';
-import { Save, Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus } from 'lucide-react';
 
 // Inner component to access ChecklistContext for auto-advancing tabs
 const AppContent: React.FC = () => {
@@ -127,103 +127,92 @@ const AppContent: React.FC = () => {
         {isAuthenticated && (
           <div className="mb-4 relative">
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-indigo-700">Backend Microservice Checklist</h1>
-              <div className="flex gap-2">
+              <div></div>
+              <div className="relative">
                 <button 
-                  onClick={() => saveCurrentProgress()} 
-                  className="flex items-center gap-1 px-3 py-2 bg-indigo-500 hover:bg-indigo-600 rounded transition-colors text-white"
-                  title="Save progress"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md flex items-center"
+                  onClick={() => {
+                    setShowChecklistsDropdown(!showChecklistsDropdown);
+                    if (!showChecklistsDropdown) {
+                      // Refresh the list of checklists when opening the dropdown
+                      loadChecklists();
+                    }
+                  }}
                 >
-                  <Save className="h-4 w-4" />
-                  <span>Save</span>
+                  <span>Checklists</span>
+                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
-
-                <div className="relative">
-                  <button 
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-md flex items-center"
-                    onClick={() => {
-                      setShowChecklistsDropdown(!showChecklistsDropdown);
-                      if (!showChecklistsDropdown) {
-                        // Refresh the list of checklists when opening the dropdown
-                        loadChecklists();
-                      }
-                    }}
-                  >
-                    <span>Checklists</span>
-                    <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  
-                  {showChecklistsDropdown && (
-                    <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-md z-50">
-                      <div className="p-3 border-b border-gray-200">
-                        <h3 className="font-medium text-gray-700">Your Checklists</h3>
-                      </div>
-                      
-                      <div className="max-h-64 overflow-y-auto">
-                        {availableChecklists.map(checklist => (
-                          <div
-                            key={checklist.checklistName}
-                            className={`flex justify-between items-center p-2 hover:bg-gray-100 cursor-pointer ${
-                              currentChecklistId === checklist.checklistName ? 'bg-indigo-50 text-indigo-700' : ''
-                            }`}
-                            onClick={() => {
-                              setCurrentChecklistId(checklist.checklistName);
-                              setShowChecklistsDropdown(false);
-                            }}
-                          >
-                            <div>
-                              <div className="font-medium">{checklist.checklistName}</div>
-                              <div className="text-xs text-gray-500">
-                                Last updated: {formatDate(checklist.lastUpdatedAt)}
-                              </div>
+                
+                {showChecklistsDropdown && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-md z-50">
+                    <div className="p-3 border-b border-gray-200">
+                      <h3 className="font-medium text-gray-700">Your Checklists</h3>
+                    </div>
+                    
+                    <div className="max-h-64 overflow-y-auto">
+                      {availableChecklists.map(checklist => (
+                        <div
+                          key={checklist.checklistName}
+                          className={`flex justify-between items-center p-2 hover:bg-gray-100 cursor-pointer ${
+                            currentChecklistId === checklist.checklistName ? 'bg-indigo-50 text-indigo-700' : ''
+                          }`}
+                          onClick={() => {
+                            setCurrentChecklistId(checklist.checklistName);
+                            setShowChecklistsDropdown(false);
+                          }}
+                        >
+                          <div>
+                            <div className="font-medium">{checklist.checklistName}</div>
+                            <div className="text-xs text-gray-500">
+                              Last updated: {formatDate(checklist.lastUpdatedAt)}
                             </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (window.confirm('Are you sure you want to delete this checklist?')) {
-                                  deleteCurrentChecklist();
-                                }
-                              }}
-                              className="p-1 text-red-500 hover:text-red-700 rounded"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
                           </div>
-                        ))}
-                        
-                        {availableChecklists.length === 0 && (
-                          <div className="px-4 py-2 text-gray-500 italic">No checklists yet</div>
-                        )}
-                      </div>
-                      
-                      <div className="p-3 border-t border-gray-200">
-                        <div className="flex">
-                          <input
-                            type="text"
-                            className="flex-1 border border-gray-300 rounded-l-md px-3 py-2 text-sm"
-                            placeholder="New checklist name..."
-                            value={newChecklistName}
-                            onChange={(e) => setNewChecklistName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                createNewChecklist();
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm('Are you sure you want to delete this checklist?')) {
+                                deleteCurrentChecklist();
                               }
                             }}
-                          />
-                          <button
-                            className="bg-indigo-600 text-white rounded-r-md px-3"
-                            onClick={createNewChecklist}
-                            disabled={!newChecklistName.trim()}
+                            className="p-1 text-red-500 hover:text-red-700 rounded"
                           >
-                            <Plus className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
+                      ))}
+                      
+                      {availableChecklists.length === 0 && (
+                        <div className="px-4 py-2 text-gray-500 italic">No checklists yet</div>
+                      )}
+                    </div>
+                    
+                    <div className="p-3 border-t border-gray-200">
+                      <div className="flex">
+                        <input
+                          type="text"
+                          className="flex-1 border border-gray-300 rounded-l-md px-3 py-2 text-sm"
+                          placeholder="New checklist name..."
+                          value={newChecklistName}
+                          onChange={(e) => setNewChecklistName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              createNewChecklist();
+                            }
+                          }}
+                        />
+                        <button
+                          className="bg-indigo-600 text-white rounded-r-md px-3"
+                          onClick={createNewChecklist}
+                          disabled={!newChecklistName.trim()}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
