@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { ChecklistSection, ChecklistItem } from '../types';
+import { sections as initialSections } from '../utils/data';
 import { useAuth } from './AuthContext';
 
 // Define the API base URL
@@ -12,6 +14,26 @@ interface ChecklistContent {
 }
 
 interface ChecklistContextType {
+  // UI related
+  sections: ChecklistSection[];
+  toggleItem: (sectionId: string, itemId: string) => void;
+  getSectionProgress: (sectionId: string) => number;
+  getOverallProgress: () => number;
+  nextFocusItemId: string | null;
+  setNextFocusItemId: (itemId: string | null) => void;
+  completedSectionIdToAdvanceFrom: string | null;
+  setCompletedSectionIdToAdvanceFrom: (sectionId: string | null) => void;
+  saveCurrentProgress: () => Promise<void>;
+  loadChecklists: () => Promise<void>;
+  availableChecklists: Array<{checklistName: string, lastUpdatedAt: string}>;
+  currentChecklistId: string;
+  setCurrentChecklistId: (id: string) => void;
+  deleteCurrentChecklist: () => Promise<void>;
+  clearAllData: () => void;
+  toastMessage: string | null;
+  clearToastMessage: () => void;
+
+  // API related
   saveChecklist: (checklistName: string, content: ChecklistContent) => Promise<void>;
   getChecklists: () => Promise<Array<{checklistName: string, content: ChecklistContent, lastUpdatedAt: string}>>;
   getChecklistIds: () => Promise<string[]>;
@@ -24,14 +46,47 @@ interface ChecklistContextType {
 
 const ChecklistContext = createContext<ChecklistContextType | undefined>(undefined);
 
-export const ChecklistProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+interface ChecklistProviderProps {
+  children: ReactNode;
+}
+
+// Default checklist identifier to use with the API
+const DEFAULT_CHECKLIST_ID = 'default-checklist';
+
+export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  const [sections, setSections] = useState<ChecklistSection[]>(() => {
+    const saved = localStorage.getItem('microservice-checklist');
+    return saved ? JSON.parse(saved) : initialSections;
+  });
+  const [nextFocusItemId, setNextFocusItemId] = useState<string | null>(null);
+  const [completedSectionIdToAdvanceFrom, setCompletedSectionIdToAdvanceFrom] = useState<string | null>(null);
+  const [availableChecklists, setAvailableChecklists] = useState<Array<{checklistName: string, lastUpdatedAt: string}>>([]);
+  const [currentChecklistId, setCurrentChecklistId] = useState<string>(DEFAULT_CHECKLIST_ID);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const clearError = () => {
     setError(null);
   };
+  
+  const clearToastMessage = () => {
+    setToastMessage(null);
+  };
+
+  // Load checklists when authenticated or ID changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadChecklists().catch(console.error);
+    }
+  }, [isAuthenticated, currentChecklistId]);
+
+  // Always save to localStorage as a backup
+  useEffect(() => {
+    localStorage.setItem('microservice-checklist', JSON.stringify(sections));
+  }, [sections]);
 
   // Function to save a checklist
   const saveChecklist = async (checklistName: string, content: ChecklistContent) => {
@@ -167,42 +222,6 @@ export const ChecklistProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
   
-  // Function to get all checklists for the user
-  const getChecklists = async () => {
-    if (!isAuthenticated || !user) {
-      setError('You must be logged in to view checklists');
-      return [];
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // First get all checklist IDs
-      const checklistIds = await getChecklistIds();
-      
-      // Then fetch each checklist individually
-      const checklists = [];
-      for (const id of checklistIds) {
-        const checklist = await getChecklist(id);
-        if (checklist) {
-          checklists.push({
-            checklistName: checklist.checklistName,
-            content: checklist.content,
-            lastUpdatedAt: checklist.lastUpdatedAt
-          });
-        }
-      }
-      
-      return checklists;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
   // Function to delete a checklist
   const deleteChecklist = async (checklistName: string) => {
     if (!isAuthenticated || !user) {
@@ -236,11 +255,339 @@ export const ChecklistProvider: React.FC<{ children: ReactNode }> = ({ children 
       setIsLoading(false);
     }
   };
+
+  // Load available checklists from the API
+  const loadChecklists = async () => {
+    if (!isAuthenticated) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Get all checklist IDs
+      const checklistIds = await getChecklistIds();
+      
+      // Format the IDs for the dropdown
+      const formattedChecklists = [];
+      
+      // If we have a specific checklist selected, load its data
+      if (currentChecklistId !== DEFAULT_CHECKLIST_ID && checklistIds.includes(currentChecklistId)) {
+        const checklist = await getChecklist(currentChecklistId);
+        
+        if (checklist) {
+          // Process and apply the checklist data
+          const loadedSections = [...initialSections];
+          
+          Object.entries(checklist.content.sections).forEach(([sectionId, sectionData]) => {
+            const sectionIndex = loadedSections.findIndex(s => s.id === sectionId);
+            if (sectionIndex !== -1 && sectionData && typeof sectionData === 'object' && 'items' in sectionData) {
+              const sectionItems = sectionData.items as Record<string, boolean>;
+              const items = loadedSections[sectionIndex].items.map(item => ({
+                ...item,
+                checked: sectionItems[item.id] || false
+              }));
+              
+              loadedSections[sectionIndex] = {
+                ...loadedSections[sectionIndex],
+                items
+              };
+            }
+          });
+          
+          setSections(loadedSections);
+          
+          // Add to available checklists
+          for (const id of checklistIds) {
+            formattedChecklists.push({
+              checklistName: id,
+              lastUpdatedAt: id === currentChecklistId ? 
+                checklist.lastUpdatedAt : 
+                new Date().toISOString()
+            });
+          }
+        }
+      } else if (checklistIds.length > 0 && currentChecklistId === DEFAULT_CHECKLIST_ID) {
+        // If we're on the default checklist but have others available,
+        // just list them without loading
+        for (const id of checklistIds) {
+          formattedChecklists.push({
+            checklistName: id,
+            lastUpdatedAt: new Date().toISOString()
+          });
+        }
+      } else if (checklistIds.length > 0 && !checklistIds.includes(currentChecklistId)) {
+        // If our current ID doesn't exist in the checklistIds, load the first one
+        const firstChecklistId = checklistIds[0];
+        const checklist = await getChecklist(firstChecklistId);
+        
+        if (checklist) {
+          // Convert the stored format back to our sections array
+          const loadedSections = [...initialSections];
+          
+          Object.entries(checklist.content.sections).forEach(([sectionId, sectionData]) => {
+            const sectionIndex = loadedSections.findIndex(s => s.id === sectionId);
+            if (sectionIndex !== -1 && sectionData && typeof sectionData === 'object' && 'items' in sectionData) {
+              const sectionItems = sectionData.items as Record<string, boolean>;
+              const items = loadedSections[sectionIndex].items.map(item => ({
+                ...item,
+                checked: sectionItems[item.id] || false
+              }));
+              
+              loadedSections[sectionIndex] = {
+                ...loadedSections[sectionIndex],
+                items
+              };
+            }
+          });
+          
+          setSections(loadedSections);
+          setCurrentChecklistId(firstChecklistId);
+          
+          // Add to available checklists
+          for (const id of checklistIds) {
+            formattedChecklists.push({
+              checklistName: id,
+              lastUpdatedAt: id === firstChecklistId ? 
+                checklist.lastUpdatedAt : 
+                new Date().toISOString()
+            });
+          }
+        }
+      } else if (currentChecklistId !== DEFAULT_CHECKLIST_ID && checklistIds.length === 0) {
+        // Create an empty checklist when selecting a new ID that doesn't exist yet
+        setSections(initialSections);
+        
+        // Create the new empty checklist in the backend
+        await saveCurrentProgress();
+        
+        setToastMessage(`Created new checklist: ${currentChecklistId}`);
+        
+        // Add to available checklists
+        formattedChecklists.push({
+          checklistName: currentChecklistId,
+          lastUpdatedAt: new Date().toISOString()
+        });
+      }
+      
+      setAvailableChecklists(formattedChecklists);
+    } catch (err) {
+      setError('Failed to load checklists. Using local data.');
+      console.error('Error loading checklists:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Save current progress to the API
+  const saveCurrentProgress = async () => {
+    if (!isAuthenticated) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Always include at least an empty object so new checklists are created
+      // even if they don't have any checked items yet
+      const checklistData = {
+        sections: sections.reduce((acc, section) => {
+          // Include all sections, not just ones with checked items
+          acc[section.id] = {
+            items: section.items.reduce((itemAcc, item) => {
+              itemAcc[item.id] = item.checked;
+              return itemAcc;
+            }, {} as Record<string, boolean>)
+          };
+          return acc;
+        }, {} as Record<string, { items: Record<string, boolean> }>),
+        lastUpdatedAt: new Date().toISOString()
+      };
+      
+      await saveChecklist(currentChecklistId, checklistData);
+      
+      // Refresh list of available checklists
+      await loadChecklists();
+      
+      // Show success message
+      setToastMessage('Progress saved successfully');
+      
+      // Clear message after 3 seconds
+      setTimeout(() => clearToastMessage(), 3000);
+    } catch (err) {
+      setError('Failed to save checklist. Your progress is saved locally.');
+      console.error('Error saving checklist:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Delete the current checklist
+  const deleteCurrentChecklist = async () => {
+    if (!isAuthenticated || currentChecklistId === DEFAULT_CHECKLIST_ID) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      await deleteChecklist(currentChecklistId);
+      
+      // Reset to default checklist
+      setCurrentChecklistId(DEFAULT_CHECKLIST_ID);
+      
+      // Reset sections to initial state
+      setSections(initialSections);
+      
+      // Refresh list of available checklists
+      await loadChecklists();
+      
+      setToastMessage('Checklist deleted successfully');
+    } catch (err) {
+      setError('Failed to delete checklist.');
+      console.error('Error deleting checklist:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleItem = (sectionId: string, itemId: string) => {
+    setNextFocusItemId(null); // Clear previous focus intention first
+
+    setSections(prevSections => {
+      const newSections = prevSections.map(section => 
+        section.id === sectionId 
+          ? {
+              ...section,
+              items: section.items.map(item => 
+                item.id === itemId 
+                  ? { ...item, checked: !item.checked }
+                  : item
+              )
+            }
+          : section
+      );
+
+      // --- Start: Logic to run AFTER sections are updated ---
+      const currentSection = newSections.find(s => s.id === sectionId);
+      let nextUncheckedItemIdForFocus: string | null = null;
+      let sectionJustCompletedId: string | null = null;
+
+      if (currentSection) {
+        const itemJustToggled = currentSection.items.find(item => item.id === itemId);
+        
+        // If we just checked an item (not unchecked)
+        if (itemJustToggled?.checked) {
+          // Find the next unchecked item in this section
+          const nextUncheckedItem = currentSection.items.find(
+            item => !item.checked && item.id !== itemId
+          );
+          
+          if (nextUncheckedItem) {
+            // Still unchecked items in this section
+            nextUncheckedItemIdForFocus = nextUncheckedItem.id;
+          } else {
+            // Section just completed! Find next section with unchecked items
+            sectionJustCompletedId = sectionId;
+            
+            const currentSectionIndex = newSections.findIndex(s => s.id === sectionId);
+            if (currentSectionIndex !== -1) {
+              // Try to find the next section with unchecked items
+              for (let i = currentSectionIndex + 1; i < newSections.length; i++) {
+                const nextSection = newSections[i];
+                const firstUncheckedItemInNextSection = nextSection.items.find(item => !item.checked);
+                
+                if (firstUncheckedItemInNextSection) {
+                  nextUncheckedItemIdForFocus = firstUncheckedItemInNextSection.id;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Set the next item to auto-focus
+      if (nextUncheckedItemIdForFocus) {
+        setNextFocusItemId(nextUncheckedItemIdForFocus);
+      }
+      
+      // Set the section we just completed (if applicable)
+      if (sectionJustCompletedId) {
+        setCompletedSectionIdToAdvanceFrom(sectionJustCompletedId);
+      }
+      // --- End: Logic to run AFTER sections are updated ---
+
+      return newSections;
+    });
+  };
+
+  const getSectionProgress = (sectionId: string): number => {
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) return 0;
+    
+    const totalItems = section.items.length;
+    if (totalItems === 0) return 0;
+    
+    const checkedItems = section.items.filter(item => item.checked).length;
+    return Math.round((checkedItems / totalItems) * 100);
+  };
+
+  const getOverallProgress = (): number => {
+    const totalItems = sections.reduce((total, section) => total + section.items.length, 0);
+    if (totalItems === 0) return 0;
+    
+    const checkedItems = sections.reduce(
+      (total, section) => total + section.items.filter(item => item.checked).length, 
+      0
+    );
+    
+    return Math.round((checkedItems / totalItems) * 100);
+  };
   
+  const clearAllData = () => {
+    setSections(initialSections);
+    setCurrentChecklistId(DEFAULT_CHECKLIST_ID);
+    localStorage.removeItem('microservice-checklist');
+    setToastMessage('All progress cleared');
+    setTimeout(() => clearToastMessage(), 3000);
+  };
+
   return (
     <ChecklistContext.Provider value={{
+      // UI related
+      sections,
+      toggleItem,
+      getSectionProgress,
+      getOverallProgress,
+      nextFocusItemId,
+      setNextFocusItemId,
+      completedSectionIdToAdvanceFrom,
+      setCompletedSectionIdToAdvanceFrom,
+      saveCurrentProgress,
+      loadChecklists,
+      availableChecklists,
+      currentChecklistId,
+      setCurrentChecklistId,
+      deleteCurrentChecklist,
+      clearAllData,
+      toastMessage,
+      clearToastMessage,
+      
+      // API related
       saveChecklist,
-      getChecklists,
+      getChecklists: async () => {
+        const checklistIds = await getChecklistIds();
+        const checklists = [];
+        for (const id of checklistIds) {
+          const checklist = await getChecklist(id);
+          if (checklist) {
+            checklists.push({
+              checklistName: checklist.checklistName,
+              content: checklist.content,
+              lastUpdatedAt: checklist.lastUpdatedAt
+            });
+          }
+        }
+        return checklists;
+      },
       getChecklistIds,
       getChecklist,
       deleteChecklist,
@@ -253,11 +600,10 @@ export const ChecklistProvider: React.FC<{ children: ReactNode }> = ({ children 
   );
 };
 
-export const useChecklist = () => {
+export const useChecklist = (): ChecklistContextType => {
   const context = useContext(ChecklistContext);
   if (context === undefined) {
     throw new Error('useChecklist must be used within a ChecklistProvider');
   }
-  
   return context;
 }; 
