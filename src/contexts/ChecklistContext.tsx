@@ -52,18 +52,13 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Load completions from localStorage (fallback) or try to load from API if authenticated
+  // Load completions and selected checklist when authenticated or ID changes
   useEffect(() => {
-    const saved = localStorage.getItem('microservice-checklist');
-    if (saved) {
-      setSections(JSON.parse(saved));
-    }
-
     // If authenticated, fetch available completions
     if (isAuthenticated) {
       loadCompletions().catch(console.error);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, currentCompletionId]);
 
   // Always save to localStorage as a backup
   useEffect(() => {
@@ -160,19 +155,17 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     setError(null);
     
     try {
-      // Convert sections array to the format we want to store
+      // Always include at least an empty object so new checklists are created
+      // even if they don't have any checked items yet
       const completionData = {
         sections: sections.reduce((acc, section) => {
-          // Only include sections with at least one checked item
-          const checkedItems = section.items.filter(item => item.checked);
-          if (checkedItems.length > 0) {
-            acc[section.id] = {
-              items: section.items.reduce((itemAcc, item) => {
-                itemAcc[item.id] = item.checked;
-                return itemAcc;
-              }, {} as Record<string, boolean>)
-            };
-          }
+          // Include all sections, not just ones with checked items
+          acc[section.id] = {
+            items: section.items.reduce((itemAcc, item) => {
+              itemAcc[item.id] = item.checked;
+              return itemAcc;
+            }, {} as Record<string, boolean>)
+          };
           return acc;
         }, {} as Record<string, { items: Record<string, boolean> }>),
         lastUpdatedAt: new Date().toISOString()
@@ -298,7 +291,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     setToastMessage(null);
   };
 
-  // Reset checklist to initial state and clear localStorage
+  // Reset checklist to initial state without changing the current checklist name
   const clearAllData = () => {
     // Reset sections to initial state - create a fresh deep copy
     const freshSections = JSON.parse(JSON.stringify(initialSections));
@@ -310,7 +303,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     setError(null);
     
     // Show success toast
-    setToastMessage('All progress has been cleared successfully');
+    setToastMessage('Checklist reset successfully');
   };
 
   return (

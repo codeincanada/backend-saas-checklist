@@ -19,11 +19,11 @@ const Header: React.FC = () => {
   
   const handleCreateNew = async () => {
     if (newTaskName.trim()) {
-      // Clear existing data to start fresh with the new checklist
-      clearAllData();
-      
-      // Set the new checklist name
+      // Set the new checklist name first
       setCurrentCompletionId(newTaskName.trim());
+      
+      // Then clear existing data to start fresh with the new checklist
+      clearAllData();
       
       // Save the new checklist with this name
       await saveCurrentProgress();
@@ -124,9 +124,14 @@ const Header: React.FC = () => {
                           <div 
                             key={completion.taskIdentifier}
                             className={`flex justify-between items-center p-2 hover:bg-gray-100 transition-colors cursor-pointer rounded ${currentCompletionId === completion.taskIdentifier ? 'bg-indigo-50' : ''}`}
-                            onClick={() => {
+                            onClick={async () => {
+                              // First set the ID
                               setCurrentCompletionId(completion.taskIdentifier);
-                              loadCompletions();
+                              
+                              // Then load the completions to update the UI
+                              await loadCompletions();
+                              
+                              // Close the dropdown
                               setShowCompletions(false);
                             }}
                           >

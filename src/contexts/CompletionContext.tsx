@@ -81,7 +81,8 @@ export const CompletionProvider: React.FC<{ children: ReactNode }> = ({ children
         throw new Error(errorData?.error || 'Failed to fetch completions');
       }
       
-      return await response.json();
+      const completions = await response.json();
+      return completions;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
       return [];
