@@ -50,10 +50,6 @@ fi
 # Get the storage account key
 STORAGE_ACCOUNT_KEY=$(az storage account keys list --account-name "$STORAGE_ACCOUNT_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --query "[0].value" -o tsv)
 
-# Create the UserTaskCompletions table if it doesn't exist
-echo "Ensuring UserTaskCompletions table exists..."
-az storage table create --name "UserTaskCompletions" --account-name "$STORAGE_ACCOUNT_NAME" --account-key "$STORAGE_ACCOUNT_KEY" || true
-
 # Create the Checklists table if it doesn't exist
 echo "Ensuring Checklists table exists..."
 az storage table create --name "Checklists" --account-name "$STORAGE_ACCOUNT_NAME" --account-key "$STORAGE_ACCOUNT_KEY" || true
@@ -78,7 +74,15 @@ az functionapp config appsettings set --name "$FIXED_FUNCTION_APP_NAME" --resour
   "AZURE_STORAGE_ACCOUNT_KEY=$STORAGE_ACCOUNT_KEY"
 
 echo "Configuring CORS for $FIXED_FUNCTION_APP_NAME..."
-az functionapp cors add --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --allowed-origins "https://checklist.codein.ca" # This command adds, it doesn't overwrite, which is usually fine.
+# Get current CORS settings
+CURRENT_CORS=$(az functionapp cors show --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP")
+# Remove any existing origins except the production one
+for ORIGIN in $(echo $CURRENT_CORS | jq -r '.allowedOrigins[]' | grep -v 'checklist.codein.ca'); do
+  echo "Removing CORS origin: $ORIGIN"
+  az functionapp cors remove --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --allowed-origins "$ORIGIN" > /dev/null
+done
+# Ensure the production origin is in the list
+az functionapp cors add --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --allowed-origins "https://checklist.codein.ca"
 
 echo "Building function app..."
 cd "$SCRIPT_DIR"

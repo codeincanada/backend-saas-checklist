@@ -16,7 +16,7 @@ function getTableClient() {
   );
 }
 
-// Interface to define the expected structure of checklist entities from Table Storage
+// Interface to define the expected structure of entities from Table Storage
 interface ChecklistEntity {
   partitionKey: string; // userId (githubUserId)
   rowKey: string; // checklistName
@@ -25,16 +25,18 @@ interface ChecklistEntity {
   timestamp: string; // Auto-added by Azure Tables
 }
 
-const getAllChecklists = async (
+const getChecklist = async (
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> => {
-  context.log("HTTP trigger function processed a request for getAllChecklists (user's checklists).");
+  context.log("HTTP trigger function processed a request for getChecklist.");
 
   // Get the authenticated user ID from header
   const userId = request.headers.get("x-github-user-id");
 
-  // Authentication check
+  // Get the checklist name from the route parameter
+  const checklistName = request.params.name;
+
   if (!userId) {
     return {
       status: 401,
@@ -45,33 +47,53 @@ const getAllChecklists = async (
     };
   }
 
-  try {
-    const tableClient = getTableClient();
-    
-    // Query all checklists for the authenticated user
-    const entities = tableClient.listEntities<ChecklistEntity>({
-      queryOptions: {
-        filter: `PartitionKey eq '${userId}'`
-      }
-    });
-    
-    const checklistIds = [];
-    for await (const entity of entities) {
-      checklistIds.push(entity.rowKey);
-    }
-    
+  if (!checklistName) {
     return {
-      status: 200,
-      body: JSON.stringify({ checklistIds }),
+      status: 400,
+      body: JSON.stringify({ error: "Checklist name is required." }),
       headers: {
         "Content-Type": "application/json"
       }
     };
+  }
+
+  try {
+    const tableClient = getTableClient();
+    
+    // Try to get the specific checklist
+    try {
+      const entity = await tableClient.getEntity<ChecklistEntity>(userId, checklistName);
+      
+      return {
+        status: 200,
+        body: JSON.stringify({
+          checklistName: entity.rowKey,
+          content: JSON.parse(entity.content),
+          lastUpdatedAt: entity.customLastUpdatedAt || entity.timestamp
+        }),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      };
+    } catch (error) {
+      // Entity not found
+      if ((error as any).statusCode === 404) {
+        return {
+          status: 404,
+          body: JSON.stringify({ error: "Checklist not found." }),
+          headers: {
+            "Content-Type": "application/json"
+          }
+        };
+      } else {
+        throw error; // Re-throw if it's some other error
+      }
+    }
   } catch (error) {
-    context.log(`Error retrieving checklist IDs: ${error instanceof Error ? error.message : String(error)}`);
+    context.log(`Error retrieving checklist: ${error instanceof Error ? error.message : String(error)}`);
     return {
       status: 500,
-      body: JSON.stringify({ error: "Failed to retrieve checklist IDs." }),
+      body: JSON.stringify({ error: "Failed to retrieve checklist." }),
       headers: {
         "Content-Type": "application/json"
       }
@@ -79,9 +101,9 @@ const getAllChecklists = async (
   }
 };
 
-app.http('getAllChecklists', {
+app.http('getChecklist', {
   methods: ['GET'],
-  route: 'checklists',
+  route: 'checklist/{name}',
   authLevel: 'anonymous',
-  handler: getAllChecklists
+  handler: getChecklist
 }); 

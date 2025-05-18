@@ -16,7 +16,7 @@ function getTableClient() {
   );
 }
 
-// Interface to define the expected structure of checklist entities from Table Storage
+// Interface to define the expected structure of entities from Table Storage
 interface ChecklistEntity {
   partitionKey: string; // userId (githubUserId)
   rowKey: string; // checklistName
@@ -25,16 +25,15 @@ interface ChecklistEntity {
   timestamp: string; // Auto-added by Azure Tables
 }
 
-const getAllChecklists = async (
+const getChecklists = async (
   request: HttpRequest,
   context: InvocationContext
 ): Promise<HttpResponseInit> => {
-  context.log("HTTP trigger function processed a request for getAllChecklists (user's checklists).");
+  context.log("HTTP trigger function processed a request for getChecklists.");
 
   // Get the authenticated user ID from header
   const userId = request.headers.get("x-github-user-id");
 
-  // Authentication check
   if (!userId) {
     return {
       status: 401,
@@ -48,30 +47,35 @@ const getAllChecklists = async (
   try {
     const tableClient = getTableClient();
     
-    // Query all checklists for the authenticated user
+    // Query entities where PartitionKey equals the userId
     const entities = tableClient.listEntities<ChecklistEntity>({
       queryOptions: {
         filter: `PartitionKey eq '${userId}'`
       }
     });
     
-    const checklistIds = [];
+    const checklists = [];
     for await (const entity of entities) {
-      checklistIds.push(entity.rowKey);
+      checklists.push({
+        checklistName: entity.rowKey,
+        // Deserialize the content from JSON string to an object
+        content: JSON.parse(entity.content),
+        lastUpdatedAt: entity.customLastUpdatedAt || entity.timestamp, // Prefer custom, fallback to system
+      });
     }
     
     return {
       status: 200,
-      body: JSON.stringify({ checklistIds }),
+      body: JSON.stringify(checklists),
       headers: {
         "Content-Type": "application/json"
       }
     };
   } catch (error) {
-    context.log(`Error retrieving checklist IDs: ${error instanceof Error ? error.message : String(error)}`);
+    context.log(`Error retrieving checklists: ${error instanceof Error ? error.message : String(error)}`);
     return {
       status: 500,
-      body: JSON.stringify({ error: "Failed to retrieve checklist IDs." }),
+      body: JSON.stringify({ error: "Failed to retrieve checklists." }),
       headers: {
         "Content-Type": "application/json"
       }
@@ -79,9 +83,9 @@ const getAllChecklists = async (
   }
 };
 
-app.http('getAllChecklists', {
+app.http('getChecklists', {
   methods: ['GET'],
-  route: 'checklists',
+  route: 'checklists/user',
   authLevel: 'anonymous',
-  handler: getAllChecklists
+  handler: getChecklists
 }); 
