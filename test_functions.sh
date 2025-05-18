@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Variables
-API_BASE_URL="https://github-auth-function-20556.azurewebsites.net/api"
+API_BASE_URL="https://checklist-api.codein.ca/api"
 GITHUB_USER_ID="test-user-123"
 # Generate a unique task ID for each run to avoid conflicts
 TASK_ID="test-task-$(date +%s)"
@@ -42,7 +42,8 @@ echo ""
 
 # 2. Test getCompletions - Retrieve completions for a user
 echo -e "${BLUE}2. Testing getCompletions (GET) - Retrieving completions${NC}"
-get_response=$(curl -s -X GET "$API_BASE_URL/completions?githubUserId=$GITHUB_USER_ID")
+get_response=$(curl -s -X GET "$API_BASE_URL/completions?githubUserId=$GITHUB_USER_ID" \
+  -H "x-github-user-id: $GITHUB_USER_ID")
 
 echo "Response: $get_response"
 if [[ $get_response == *"$TASK_ID"* ]]; then
@@ -54,7 +55,8 @@ echo ""
 
 # 3. Test deleteCompletion - Delete a specific completion
 echo -e "${BLUE}3. Testing deleteCompletion (DELETE) - Deleting a completion${NC}"
-delete_response=$(curl -s -X DELETE "$API_BASE_URL/completion?githubUserId=$GITHUB_USER_ID&taskIdentifier=$TASK_ID")
+delete_response=$(curl -s -X DELETE "$API_BASE_URL/completion?githubUserId=$GITHUB_USER_ID&taskIdentifier=$TASK_ID" \
+  -H "x-github-user-id: $GITHUB_USER_ID")
 
 echo "Response: $delete_response"
 if [[ $delete_response == *"deleted successfully"* ]]; then
@@ -66,13 +68,27 @@ echo ""
 
 # 4. Verify deletion by trying to get the completions again
 echo -e "${BLUE}4. Verifying deletion - Getting completions again${NC}"
-verify_response=$(curl -s -X GET "$API_BASE_URL/completions?githubUserId=$GITHUB_USER_ID")
+verify_response=$(curl -s -X GET "$API_BASE_URL/completions?githubUserId=$GITHUB_USER_ID" \
+  -H "x-github-user-id: $GITHUB_USER_ID")
 
 echo "Response: $verify_response"
 if [[ $verify_response != *"$TASK_ID"* ]]; then
   echo -e "${GREEN}✓ Verification test passed - Task was properly deleted${NC}"
 else
   echo -e "${RED}✗ Verification test failed - Task still exists${NC}"
+fi
+echo ""
+
+# 5. Test getAllChecklists - Retrieve all available checklists
+echo -e "${BLUE}5. Testing getAllChecklists (GET) - Retrieving all checklists${NC}"
+checklists_response=$(curl -s -X GET "$API_BASE_URL/checklists" \
+  -H "x-github-user-id: $GITHUB_USER_ID")
+
+echo "Response: $checklists_response"
+if [[ $checklists_response == *"checklists"* || $checklists_response == *"["* ]]; then
+  echo -e "${GREEN}✓ getAllChecklists test passed${NC}"
+else
+  echo -e "${RED}✗ getAllChecklists test failed${NC}"
 fi
 echo ""
 

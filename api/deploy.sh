@@ -54,6 +54,10 @@ STORAGE_ACCOUNT_KEY=$(az storage account keys list --account-name "$STORAGE_ACCO
 echo "Ensuring UserTaskCompletions table exists..."
 az storage table create --name "UserTaskCompletions" --account-name "$STORAGE_ACCOUNT_NAME" --account-key "$STORAGE_ACCOUNT_KEY" || true
 
+# Create the Checklists table if it doesn't exist
+echo "Ensuring Checklists table exists..."
+az storage table create --name "Checklists" --account-name "$STORAGE_ACCOUNT_NAME" --account-key "$STORAGE_ACCOUNT_KEY" || true
+
 # Check if Function App exists, create if not
 if ! az functionapp show --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --query name --output tsv 2>/dev/null; then
   echo "Creating function app: $FIXED_FUNCTION_APP_NAME..."
