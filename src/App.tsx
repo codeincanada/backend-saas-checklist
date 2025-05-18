@@ -73,19 +73,25 @@ const AppContent: React.FC = () => {
     
     // Store the new checklist name
     const newName = newChecklistName.trim();
+    console.log('Creating new checklist with name:', newName);
     
-    // Clear existing data - use clearAllData since it's now only here
-    clearAllData();
-    
-    // Set new checklist ID to be used by the API
-    setCurrentChecklistId(newName);
-    
-    // Create a new empty checklist by saving current progress with the new ID
-    await saveCurrentProgress();
-    
-    // Clear input and close dropdown
-    setNewChecklistName('');
-    setShowChecklistsDropdown(false);
+    try {
+      // First set the new checklist ID
+      setCurrentChecklistId(newName);
+      
+      // Clear existing data while preserving the checklist ID
+      clearAllData({ preserveChecklistId: true });
+      
+      // Create a new empty checklist by saving current progress with the new ID
+      console.log('Saving with ID:', newName);
+      await saveCurrentProgress();
+      
+      // Clear input and close dropdown
+      setNewChecklistName('');
+      setShowChecklistsDropdown(false);
+    } catch (error) {
+      console.error('Error creating new checklist:', error);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -158,8 +164,14 @@ const AppContent: React.FC = () => {
                           className={`flex justify-between items-center p-2 hover:bg-gray-100 cursor-pointer ${
                             currentChecklistId === checklist.checklistName ? 'bg-indigo-50 text-indigo-700' : ''
                           }`}
-                          onClick={() => {
+                          onClick={async () => {
+                            // Set the checklist ID
                             setCurrentChecklistId(checklist.checklistName);
+                            
+                            // Load the checklist data
+                            await loadChecklists();
+                            
+                            // Close the dropdown
                             setShowChecklistsDropdown(false);
                           }}
                         >
