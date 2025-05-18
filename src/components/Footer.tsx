@@ -29,15 +29,17 @@ const Footer: React.FC = () => {
     }).format(new Date(dateString));
   };
 
+  // Determine what to show in the footer
+  const showLastUpdated = isAuthenticated && currentChecklist;
+
   return (
     <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 shadow-lg z-10">
       <div className="container mx-auto flex justify-between items-center">
         <div className="text-xs text-gray-500">
-          {currentDate}
-          {currentChecklist && (
-            <span className="ml-2">
-              • Last updated: {formatLastUpdated(currentChecklist.lastUpdatedAt)}
-            </span>
+          {showLastUpdated ? (
+            <span>Last updated: {formatLastUpdated(currentChecklist.lastUpdatedAt)}</span>
+          ) : (
+            <span>{currentDate}</span>
           )}
         </div>
         
