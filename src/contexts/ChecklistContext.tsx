@@ -262,6 +262,9 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       Promise.resolve().then(() => {
         if (isAuthenticated) {
           saveCurrentProgress().catch(console.error);
+        } else {
+          // Notify user that they need to authenticate to save to the server
+          setToastMessage('Changes saved locally. Sign in to sync across devices.');
         }
       });
 

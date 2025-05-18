@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useChecklist } from '../contexts/ChecklistContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Server, Save, Trash2, Plus, List } from 'lucide-react';
+import { Server, Save, Trash2, Plus, List, Github as GitHubIcon } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { 
@@ -13,7 +13,7 @@ const Header: React.FC = () => {
     deleteCurrentCompletion,
     clearAllData
   } = useChecklist();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, login } = useAuth();
   const [showCompletions, setShowCompletions] = useState(false);
   const [newTaskName, setNewTaskName] = useState('');
   
@@ -64,7 +64,7 @@ const Header: React.FC = () => {
         
         <div className="flex md:flex-row flex-col items-center gap-4">
           {/* Completions Management - Only visible when authenticated */}
-          {isAuthenticated && (
+          {isAuthenticated ? (
             <div className="relative">
               <div className="flex gap-2">
                 <button 
@@ -158,6 +158,15 @@ const Header: React.FC = () => {
                 )}
               </div>
             </div>
+          ) : (
+            <button 
+              onClick={() => login()} 
+              className="flex items-center gap-1 px-3 py-1.5 bg-gray-800 hover:bg-gray-900 rounded transition-colors"
+              title="Sign in to save your progress"
+            >
+              <GitHubIcon className="h-4 w-4" />
+              <span>Sign in with GitHub</span>
+            </button>
           )}
         </div>
       </div>
