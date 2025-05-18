@@ -182,14 +182,30 @@ const AppContent: React.FC = () => {
                             </div>
                           </div>
                           <button
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
-                              if (window.confirm('Are you sure you want to delete this checklist?')) {
-                                // Use the explicit checklist ID parameter
-                                deleteCurrentChecklist(checklist.checklistName);
+                              
+                              if (window.confirm(`Are you sure you want to delete checklist "${checklist.checklistName}"?`)) {
+                                try {
+                                  console.log(`Attempting to delete checklist: ${checklist.checklistName}`);
+                                  
+                                  // Use the explicit checklist ID parameter
+                                  await deleteCurrentChecklist(checklist.checklistName);
+                                  
+                                  console.log(`Successfully requested deletion of: ${checklist.checklistName}`);
+                                  
+                                  // Force reload the list immediately
+                                  setTimeout(() => {
+                                    loadChecklists();
+                                  }, 500);
+                                } catch (err) {
+                                  console.error('Error when trying to delete checklist:', err);
+                                  alert('Failed to delete checklist. Please try again.');
+                                }
                               }
                             }}
                             className="p-1 text-red-500 hover:text-red-700 rounded"
+                            aria-label={`Delete checklist ${checklist.checklistName}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

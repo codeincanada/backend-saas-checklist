@@ -225,6 +225,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
   // Function to delete a checklist
   const deleteChecklist = async (checklistName: string) => {
     if (!isAuthenticated || !user) {
+      console.error('Not authenticated or missing user data:', { isAuthenticated, user });
       setError('You must be logged in to delete checklists');
       return;
     }
@@ -233,8 +234,12 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     setError(null);
     
     try {
+      console.log(`Attempting to delete checklist: ${checklistName} for user: ${user.login}`);
+      const apiUrl = `${API_BASE_URL}/checklist?userId=${encodeURIComponent(user.login)}&checklistName=${encodeURIComponent(checklistName)}`;
+      console.log('DELETE request URL:', apiUrl);
+      
       const response = await fetch(
-        `${API_BASE_URL}/checklist?userId=${encodeURIComponent(user.login)}&checklistName=${encodeURIComponent(checklistName)}`, 
+        apiUrl, 
         { 
           method: 'DELETE',
           headers: {
@@ -244,11 +249,17 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
         }
       );
       
+      console.log('Delete response status:', response.status);
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
+        console.error('Error response:', errorData);
         throw new Error(errorData?.error || 'Failed to delete checklist');
       }
+      
+      console.log('Checklist deleted successfully');
     } catch (err) {
+      console.error('Error in deleteChecklist:', err);
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
       throw err;
     } finally {
@@ -428,25 +439,35 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     // Use the provided checklistId if available, otherwise use the currentChecklistId
     const checklistToDelete = checklistIdToDelete || currentChecklistId;
     
-    if (!isAuthenticated || checklistToDelete === DEFAULT_CHECKLIST_ID) return;
+    console.log(`deleteCurrentChecklist called with: ${checklistIdToDelete}, using: ${checklistToDelete}`);
+    console.log('Authentication state:', { isAuthenticated, user });
+    
+    if (!isAuthenticated || checklistToDelete === DEFAULT_CHECKLIST_ID) {
+      console.log('Cannot delete: not authenticated or trying to delete default checklist');
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
     
     try {
+      console.log(`Attempting to delete checklist: ${checklistToDelete}`);
       await deleteChecklist(checklistToDelete);
       
       // If we're deleting the current checklist, reset to default
       if (checklistToDelete === currentChecklistId) {
-      setCurrentChecklistId(DEFAULT_CHECKLIST_ID);
-      setSections(initialSections);
+        console.log('Deleted the current checklist, resetting to default');
+        setCurrentChecklistId(DEFAULT_CHECKLIST_ID);
+        setSections(initialSections);
       }
       
       // Refresh list of available checklists
+      console.log('Refreshing checklists list');
       await loadChecklists();
       
       setToastMessage('Checklist deleted successfully');
     } catch (err) {
+      console.error('Error in deleteCurrentChecklist:', err);
       setError('Failed to delete checklist.');
       console.error('Error deleting checklist:', err);
     } finally {
