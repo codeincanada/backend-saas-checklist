@@ -442,8 +442,8 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     console.log(`deleteCurrentChecklist called with: ${checklistIdToDelete}, using: ${checklistToDelete}`);
     console.log('Authentication state:', { isAuthenticated, user });
     
-    if (!isAuthenticated || checklistToDelete === DEFAULT_CHECKLIST_ID) {
-      console.log('Cannot delete: not authenticated or trying to delete default checklist');
+    if (!isAuthenticated) {
+      console.log('Cannot delete: not authenticated');
       return;
     }
     
