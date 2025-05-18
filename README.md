@@ -22,7 +22,7 @@ An interactive checklist application for backend microservice development best p
    - Click "New OAuth App"
    - Fill in the details:
      - Application name: Backend Microservice Checklist
-     - Homepage URL: https://mellifluous-meringue-b16ddc.netlify.app (or your production URL)
+     - Homepage URL: https://checklist.codein.ca
      - Authorization callback URL: https://github-auth-function-20556.azurewebsites.net/api/githubAuth
    - Register the application
    - Copy the Client ID and Client Secret

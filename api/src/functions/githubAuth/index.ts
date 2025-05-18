@@ -67,7 +67,7 @@ export async function githubAuth(request: HttpRequest, context: InvocationContex
         const accessToken = tokenData.access_token;
 
         // Get allowed origins from env variables or use default
-        const productionFrontendUrl = 'https://mellifluous-meringue-b16ddc.netlify.app';
+        const productionFrontendUrl = 'https://checklist.codein.ca';
         const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [productionFrontendUrl];
         
         // Determine redirect URL with success or error
