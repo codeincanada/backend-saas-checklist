@@ -29,7 +29,7 @@ interface ChecklistContextType {
   currentChecklistId: string;
   setCurrentChecklistId: (id: string) => void;
   deleteCurrentChecklist: () => Promise<void>;
-  clearAllData: () => void;
+  clearAllData: (options?: { preserveChecklistId?: boolean }) => void;
   toastMessage: string | null;
   clearToastMessage: () => void;
 
@@ -386,6 +386,9 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     setError(null);
     
     try {
+      // Console log to debug checklist ID issues
+      console.log('Saving checklist with ID:', currentChecklistId);
+      
       // Always include at least an empty object so new checklists are created
       // even if they don't have any checked items yet
       const checklistData = {
@@ -542,9 +545,14 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     return Math.round((checkedItems / totalItems) * 100);
   };
   
-  const clearAllData = () => {
+  const clearAllData = (options?: { preserveChecklistId?: boolean }) => {
     setSections(initialSections);
-    setCurrentChecklistId(DEFAULT_CHECKLIST_ID);
+    
+    // Only reset the checklist ID if not explicitly asked to preserve it
+    if (!options?.preserveChecklistId) {
+      setCurrentChecklistId(DEFAULT_CHECKLIST_ID);
+    }
+    
     localStorage.removeItem('microservice-checklist');
     setToastMessage('All progress cleared');
     setTimeout(() => clearToastMessage(), 3000);
