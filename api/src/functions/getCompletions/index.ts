@@ -33,11 +33,24 @@ const getCompletions = async (
 
   const url = new URL(request.url);
   const githubUserId = url.searchParams.get("githubUserId");
+  // Get the authenticated user ID from header
+  const authenticatedUserId = request.headers.get("x-github-user-id");
 
   if (!githubUserId) {
     return {
       status: 400,
       body: JSON.stringify({ error: "Please provide githubUserId as a query parameter." }),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    };
+  }
+
+  // Ensure users can only access their own data
+  if (!authenticatedUserId || authenticatedUserId !== githubUserId) {
+    return {
+      status: 403,
+      body: JSON.stringify({ error: "You can only access your own checklists." }),
       headers: {
         "Content-Type": "application/json"
       }

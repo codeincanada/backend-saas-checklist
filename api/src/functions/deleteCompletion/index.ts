@@ -26,6 +26,9 @@ const deleteCompletion = async (
   const url = new URL(request.url);
   const githubUserId = url.searchParams.get("githubUserId");
   const taskIdentifier = url.searchParams.get("taskIdentifier");
+  
+  // Get the authenticated user ID from header
+  const authenticatedUserId = request.headers.get("x-github-user-id");
 
   if (!githubUserId || !taskIdentifier) {
     return {
@@ -33,6 +36,17 @@ const deleteCompletion = async (
       body: JSON.stringify({
         error: "Please provide both githubUserId and taskIdentifier in query parameters."
       }),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    };
+  }
+  
+  // Ensure users can only delete their own data
+  if (!authenticatedUserId || authenticatedUserId !== githubUserId) {
+    return {
+      status: 403,
+      body: JSON.stringify({ error: "You can only delete your own checklists." }),
       headers: {
         "Content-Type": "application/json"
       }
