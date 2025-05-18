@@ -119,7 +119,7 @@ echo "Deployment to $FIXED_FUNCTION_APP_NAME completed successfully!"
 echo "Function URL: $FUNCTION_URL"
 echo ""
 echo "Ensure AuthContext.tsx uses this URL for production:"
-echo "const AZURE_FUNCTION_URL = import.meta.env.PROD ? '$FUNCTION_URL' : 'http://localhost:7071/api/githubauth';"
+echo "const AZURE_FUNCTION_URL = '$FUNCTION_URL';"
 echo ""
 echo "Ensure your GitHub OAuth App callback URL is: $FUNCTION_URL"
 

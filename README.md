@@ -49,7 +49,7 @@ An interactive checklist application for backend microservice development best p
      ```bash
      npm start
      ```
-   - The function will be available at http://localhost:7071/api/githubAuth
+   - The function will be deployed to Azure
 
 4. Configure the frontend application:
    - Open `src/contexts/AuthContext.tsx`

@@ -24,13 +24,13 @@ az functionapp config appsettings set -g "$RESOURCE_GROUP" -n "$FUNCTION_APP_NAM
   FUNCTIONS_EXTENSION_VERSION="~4" \
   GITHUB_CLIENT_ID="Ov23lid8MA0Pb0EStu9w" \
   GITHUB_CLIENT_SECRET="ff39a41694e61ce0f8f8a2728d08241bd97cc04e" \
-  ALLOWED_ORIGINS="http://localhost:5173,https://mellifluous-meringue-b16ddc.netlify.app" \
+  ALLOWED_ORIGINS="https://mellifluous-meringue-b16ddc.netlify.app" \
   AZURE_STORAGE_ACCOUNT_NAME="$STORAGE_ACCOUNT_NAME" \
   AZURE_STORAGE_ACCOUNT_KEY="$STORAGE_ACCOUNT_KEY" > /dev/null
 
 echo "Configuring CORS settings..."
 az functionapp cors add --name "$FUNCTION_APP_NAME" --resource-group "$RESOURCE_GROUP" \
-  --allowed-origins "http://localhost:5173" "https://mellifluous-meringue-b16ddc.netlify.app"
+  --allowed-origins "https://mellifluous-meringue-b16ddc.netlify.app"
 
 echo "Redeploying function app..."
 cd "$(dirname "$0")"
