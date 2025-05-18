@@ -6,11 +6,8 @@ set -e
 # --- Configuration - SET THESE TO YOUR EXISTING RESOURCE NAMES ---
 FIXED_RESOURCE_GROUP="github-auth-resource-group"
 FIXED_FUNCTION_APP_NAME="github-auth-function-20556"
-# Attempt to derive storage name, or set it if it's fixed and known
-# This is a bit tricky as storage names must be globally unique and are tied to the function app.
-# If the function app already exists, we should query its storage account.
-# For simplicity in this update, we'll assume it might need to be created if the RG is new.
-FIXED_STORAGE_NAME_BASE="ghauthstore"
+# We'll always use this specific storage account name instead of generating a new one
+FIXED_STORAGE_ACCOUNT_NAME="githubauth27054"
 LOCATION="eastus"
 # --- End Configuration ---
 
@@ -26,6 +23,7 @@ echo "Using Node.js $NODE_VERSION (version check bypassed for testing)"
 
 echo "Target Resource Group: $FIXED_RESOURCE_GROUP"
 echo "Target Function App Name: $FIXED_FUNCTION_APP_NAME"
+echo "Target Storage Account Name: $FIXED_STORAGE_ACCOUNT_NAME"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -40,43 +38,17 @@ else
   echo "Resource group '$FIXED_RESOURCE_GROUP' already exists."
 fi
 
-# Function App specific storage name
-# Try to get existing storage account if function app exists
-STORAGE_ACCOUNT_NAME=""
-if az functionapp show --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --query name --output tsv 2>/dev/null; then
-    echo "Function App '$FIXED_FUNCTION_APP_NAME' exists. Querying its storage account connection string."
-    APP_SETTINGS=$(az functionapp config appsettings list --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --query "[?name=='AzureWebJobsStorage'].value" -o tsv 2>/dev/null)
-    if [[ -n "$APP_SETTINGS" && "$APP_SETTINGS" != "null" ]]; then
-        # Extract account name from connection string: DefaultEndpointsProtocol=https;AccountName=YOUR_ACCOUNT_NAME;AccountKey=...;
-        STORAGE_ACCOUNT_NAME=$(echo "$APP_SETTINGS" | sed -n 's/.*AccountName=\([^;]*\);.*/\1/p')
-        if [[ -n "$STORAGE_ACCOUNT_NAME" ]]; then
-            echo "Using existing storage account: $STORAGE_ACCOUNT_NAME"
-            # Extract account key as well
-            STORAGE_ACCOUNT_KEY=$(echo "$APP_SETTINGS" | sed -n 's/.*AccountKey=\([^;]*\);.*/\1/p')
-        else
-            echo "Could not parse storage account name from AzureWebJobsStorage."
-            STORAGE_ACCOUNT_NAME="" # Ensure it's reset if parsing failed
-        fi
-    else
-        echo "AzureWebJobsStorage setting not found or is null for existing function app."
-    fi
+# Use the fixed storage account name - check if it exists first
+STORAGE_ACCOUNT_NAME="$FIXED_STORAGE_ACCOUNT_NAME"
+if ! az storage account show --name "$STORAGE_ACCOUNT_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --query name --output tsv 2>/dev/null; then
+  echo "Creating storage account: $STORAGE_ACCOUNT_NAME in $LOCATION (first-time setup)..."
+  az storage account create --name "$STORAGE_ACCOUNT_NAME" --location "$LOCATION" --resource-group "$FIXED_RESOURCE_GROUP" --sku Standard_LRS --kind StorageV2
+else
+  echo "Using existing storage account: $STORAGE_ACCOUNT_NAME"
 fi
 
-# If storage account not found or function app doesn't exist yet, create a new one
-if [[ -z "$STORAGE_ACCOUNT_NAME" ]]; then
-    echo "Attempting to create or use a new/default storage account logic."
-    # More portable random string generation
-    if command -v openssl &> /dev/null; then
-        GENERATED_STORAGE_SUFFIX=$(openssl rand -hex 3)
-    else # fallback for systems without openssl easily available in path, or use alternative
-        GENERATED_STORAGE_SUFFIX=$(date +%s | sha256sum | base64 | head -c 6 | tr '[:upper:]' '[:lower:]')
-    fi 
-    STORAGE_ACCOUNT_NAME="${FIXED_STORAGE_NAME_BASE}${GENERATED_STORAGE_SUFFIX}"
-    echo "Creating storage account: $STORAGE_ACCOUNT_NAME in $LOCATION..."
-    az storage account create --name "$STORAGE_ACCOUNT_NAME" --location "$LOCATION" --resource-group "$FIXED_RESOURCE_GROUP" --sku Standard_LRS --kind StorageV2
-    # Get the storage account key
-    STORAGE_ACCOUNT_KEY=$(az storage account keys list --account-name "$STORAGE_ACCOUNT_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --query "[0].value" -o tsv)
-fi
+# Get the storage account key
+STORAGE_ACCOUNT_KEY=$(az storage account keys list --account-name "$STORAGE_ACCOUNT_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --query "[0].value" -o tsv)
 
 # Create the UserTaskCompletions table if it doesn't exist
 echo "Ensuring UserTaskCompletions table exists..."
