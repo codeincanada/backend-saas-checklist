@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { ChecklistProvider, useChecklist } from './contexts/ChecklistContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { CompletionProvider } from './contexts/CompletionContext';
-import { handleAuthCallback } from './utils/auth';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Checklist from './components/Checklist';
 import CategoryTabs from './components/CategoryTabs';
 import Toast from './components/Toast';
 import { sections as allCategoriesData } from './utils/data';
+import { handleAuthCallback } from './utils/auth';
 
 // Inner component to access ChecklistContext for auto-advancing tabs
 const AppContent: React.FC = () => {
@@ -22,9 +21,9 @@ const AppContent: React.FC = () => {
     error,
     toastMessage,
     clearToastMessage,
-    availableCompletions,
-    currentCompletionId,
-    setCurrentCompletionId,
+    availableChecklists,
+    currentChecklistId,
+    setCurrentChecklistId,
     saveCurrentProgress
   } = useChecklist();
   
@@ -69,7 +68,7 @@ const AppContent: React.FC = () => {
     if (!newChecklistName.trim()) return;
     
     // Set new checklist ID to be used by the API
-    setCurrentCompletionId(newChecklistName.trim());
+    setCurrentChecklistId(newChecklistName.trim());
     
     // Create a new empty checklist by saving current progress with the new ID
     await saveCurrentProgress();
@@ -122,25 +121,25 @@ const AppContent: React.FC = () => {
                     </div>
                     
                     <div className="max-h-64 overflow-y-auto">
-                      {availableCompletions.map(completion => (
+                      {availableChecklists.map(checklist => (
                         <button
-                          key={completion.taskIdentifier}
+                          key={checklist.checklistName}
                           className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${
-                            currentCompletionId === completion.taskIdentifier ? 'bg-indigo-50 text-indigo-700' : ''
+                            currentChecklistId === checklist.checklistName ? 'bg-indigo-50 text-indigo-700' : ''
                           }`}
                           onClick={() => {
-                            setCurrentCompletionId(completion.taskIdentifier);
+                            setCurrentChecklistId(checklist.checklistName);
                             setShowChecklistsDropdown(false);
                           }}
                         >
-                          <div className="font-medium">{completion.taskIdentifier}</div>
+                          <div className="font-medium">{checklist.checklistName}</div>
                           <div className="text-xs text-gray-500">
-                            Last updated: {new Date(completion.lastUpdatedAt).toLocaleString()}
+                            Last updated: {new Date(checklist.lastUpdatedAt).toLocaleString()}
                           </div>
                         </button>
                       ))}
                       
-                      {availableCompletions.length === 0 && (
+                      {availableChecklists.length === 0 && (
                         <div className="px-4 py-2 text-gray-500 italic">No checklists yet</div>
                       )}
                     </div>
@@ -239,11 +238,9 @@ function App() {
 
   return (
     <AuthProvider>
-      <CompletionProvider>
-        <ChecklistProvider>
-          <AppContent />
-        </ChecklistProvider>
-      </CompletionProvider>
+      <ChecklistProvider>
+        <AppContent />
+      </ChecklistProvider>
     </AuthProvider>
   );
 }

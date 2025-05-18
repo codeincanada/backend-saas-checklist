@@ -1,363 +1,263 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ChecklistSection, ChecklistItem } from '../types';
-import { sections as initialSections } from '../utils/data';
-import { useCompletion } from './CompletionContext';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 
+// Define the API base URL
+const API_BASE_URL = 'https://checklist-api.codein.ca/api';
+
+interface ChecklistContent {
+  sections: Record<string, {
+    items: Record<string, boolean>;
+  }>;
+  lastUpdatedAt: string;
+}
+
 interface ChecklistContextType {
-  sections: ChecklistSection[];
-  toggleItem: (sectionId: string, itemId: string) => void;
-  getSectionProgress: (sectionId: string) => number;
-  getOverallProgress: () => number;
-  nextFocusItemId: string | null;
-  setNextFocusItemId: (itemId: string | null) => void;
-  completedSectionIdToAdvanceFrom: string | null;
-  setCompletedSectionIdToAdvanceFrom: (sectionId: string | null) => void;
+  saveChecklist: (checklistName: string, content: ChecklistContent) => Promise<void>;
+  getChecklists: () => Promise<Array<{checklistName: string, content: ChecklistContent, lastUpdatedAt: string}>>;
+  getChecklistIds: () => Promise<string[]>;
+  getChecklist: (checklistName: string) => Promise<{checklistName: string, content: ChecklistContent, lastUpdatedAt: string} | null>;
+  deleteChecklist: (checklistName: string) => Promise<void>;
   isLoading: boolean;
   error: string | null;
-  saveCurrentProgress: () => Promise<void>;
-  loadCompletions: () => Promise<void>;
-  availableCompletions: Array<{taskIdentifier: string, lastUpdatedAt: string}>;
-  currentCompletionId: string;
-  setCurrentCompletionId: (id: string) => void;
-  deleteCurrentCompletion: () => Promise<void>;
-  clearAllData: () => void;
-  toastMessage: string | null;
-  clearToastMessage: () => void;
+  clearError: () => void;
 }
 
 const ChecklistContext = createContext<ChecklistContextType | undefined>(undefined);
 
-interface ChecklistProviderProps {
-  children: ReactNode;
-}
-
-// Default completion identifier to use with the API
-const DEFAULT_COMPLETION_ID = 'default-checklist';
-
-export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }) => {
-  // Get authentication and completion context
+export const ChecklistProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
-  const { saveCompletion, getCompletions, deleteCompletion, isLoading: apiLoading, error: apiError } = useCompletion();
-
-  const [sections, setSections] = useState<ChecklistSection[]>(() => {
-    const saved = localStorage.getItem('microservice-checklist');
-    return saved ? JSON.parse(saved) : initialSections;
-  });
-  const [nextFocusItemId, setNextFocusItemId] = useState<string | null>(null);
-  const [completedSectionIdToAdvanceFrom, setCompletedSectionIdToAdvanceFrom] = useState<string | null>(null);
-  const [availableCompletions, setAvailableCompletions] = useState<Array<{taskIdentifier: string, lastUpdatedAt: string}>>([]);
-  const [currentCompletionId, setCurrentCompletionId] = useState<string>(DEFAULT_COMPLETION_ID);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  
+  const clearError = () => {
+    setError(null);
+  };
 
-  // Load completions and selected checklist when authenticated or ID changes
-  useEffect(() => {
-    // If authenticated, fetch available completions
-    if (isAuthenticated) {
-      loadCompletions().catch(console.error);
+  // Function to save a checklist
+  const saveChecklist = async (checklistName: string, content: ChecklistContent) => {
+    if (!isAuthenticated || !user) {
+      setError('You must be logged in to save checklists');
+      return;
     }
-  }, [isAuthenticated, currentCompletionId]);
-
-  // Always save to localStorage as a backup
-  useEffect(() => {
-    localStorage.setItem('microservice-checklist', JSON.stringify(sections));
-  }, [sections]);
-
-  // Load available completions from the API
-  const loadCompletions = async () => {
-    if (!isAuthenticated) return;
     
     setIsLoading(true);
     setError(null);
     
     try {
-      const completions = await getCompletions();
+      const response = await fetch(`${API_BASE_URL}/checklist`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-github-user-id': user.login
+        },
+        body: JSON.stringify({ checklistName, content })
+      });
       
-      // Format completions for the dropdown
-      const formattedCompletions = completions.map(comp => ({
-        taskIdentifier: comp.taskIdentifier,
-        lastUpdatedAt: comp.completionData.lastUpdatedAt || new Date().toISOString()
-      }));
+      if (!response.ok) {
+        // If checklist already exists, update it instead
+        if (response.status === 409) {
+          return updateChecklist(checklistName, content);
+        }
+        
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to save checklist');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Function to update an existing checklist
+  const updateChecklist = async (checklistName: string, content: ChecklistContent) => {
+    if (!isAuthenticated || !user) {
+      setError('You must be logged in to update checklists');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/checklist`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-github-user-id': user.login
+        },
+        body: JSON.stringify({ checklistName, content })
+      });
       
-      setAvailableCompletions(formattedCompletions);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to update checklist');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      throw err;
+    }
+  };
+  
+  // Function to get all checklist IDs for the user
+  const getChecklistIds = async () => {
+    if (!isAuthenticated || !user) {
+      setError('You must be logged in to view checklists');
+      return [];
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/checklists`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-github-user-id': user.login
+        }
+      });
       
-      // Find the checklist that matches our current ID
-      const currentCompletionData = completions.find(c => c.taskIdentifier === currentCompletionId);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to fetch checklist IDs');
+      }
       
-      if (currentCompletionData && currentCompletionData.completionData.sections) {
-        // Convert the stored format back to our sections array
-        const loadedSections = [...initialSections];
-        
-        Object.entries(currentCompletionData.completionData.sections).forEach(([sectionId, sectionData]) => {
-          const sectionIndex = loadedSections.findIndex(s => s.id === sectionId);
-          if (sectionIndex !== -1) {
-            const items = loadedSections[sectionIndex].items.map(item => ({
-              ...item,
-              checked: sectionData.items[item.id] || false
-            }));
-            
-            loadedSections[sectionIndex] = {
-              ...loadedSections[sectionIndex],
-              items
-            };
-          }
-        });
-        
-        setSections(loadedSections);
-      } else if (formattedCompletions.length > 0 && !formattedCompletions.some(c => c.taskIdentifier === currentCompletionId)) {
-        // If our current ID doesn't exist in the loaded completions, load the most recent one
-        const sortedCompletions = [...formattedCompletions].sort(
-          (a, b) => new Date(b.lastUpdatedAt).getTime() - new Date(a.lastUpdatedAt).getTime()
-        );
-        
-        const mostRecentId = sortedCompletions[0].taskIdentifier;
-        setCurrentCompletionId(mostRecentId);
-        
-        // Find and load the completion data for this ID
-        const completionData = completions.find(c => c.taskIdentifier === mostRecentId);
-        if (completionData && completionData.completionData.sections) {
-          // Convert the stored format back to our sections array
-          const loadedSections = [...initialSections];
-          
-          Object.entries(completionData.completionData.sections).forEach(([sectionId, sectionData]) => {
-            const sectionIndex = loadedSections.findIndex(s => s.id === sectionId);
-            if (sectionIndex !== -1) {
-              const items = loadedSections[sectionIndex].items.map(item => ({
-                ...item,
-                checked: sectionData.items[item.id] || false
-              }));
-              
-              loadedSections[sectionIndex] = {
-                ...loadedSections[sectionIndex],
-                items
-              };
-            }
+      const data = await response.json();
+      return data.checklistIds || [];
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Function to get a specific checklist by name
+  const getChecklist = async (checklistName: string) => {
+    if (!isAuthenticated || !user) {
+      setError('You must be logged in to view checklists');
+      return null;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/checklist/${encodeURIComponent(checklistName)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-github-user-id': user.login
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to fetch checklist');
+      }
+      
+      return await response.json();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Function to get all checklists for the user
+  const getChecklists = async () => {
+    if (!isAuthenticated || !user) {
+      setError('You must be logged in to view checklists');
+      return [];
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // First get all checklist IDs
+      const checklistIds = await getChecklistIds();
+      
+      // Then fetch each checklist individually
+      const checklists = [];
+      for (const id of checklistIds) {
+        const checklist = await getChecklist(id);
+        if (checklist) {
+          checklists.push({
+            checklistName: checklist.checklistName,
+            content: checklist.content,
+            lastUpdatedAt: checklist.lastUpdatedAt
           });
-          
-          setSections(loadedSections);
         }
-      } else if (currentCompletionId !== DEFAULT_COMPLETION_ID && formattedCompletions.length === 0) {
-        // Create an empty checklist when selecting a new ID that doesn't exist yet
-        setSections(initialSections);
-        
-        // Create the new empty checklist in the backend
-        await saveCurrentProgress();
-        
-        setToastMessage(`Created new checklist: ${currentCompletionId}`);
       }
+      
+      return checklists;
     } catch (err) {
-      setError('Failed to load completions. Using local data.');
-      console.error('Error loading completions:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      return [];
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Save current progress to the API
-  const saveCurrentProgress = async () => {
-    if (!isAuthenticated) return;
+  
+  // Function to delete a checklist
+  const deleteChecklist = async (checklistName: string) => {
+    if (!isAuthenticated || !user) {
+      setError('You must be logged in to delete checklists');
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
     
     try {
-      // Always include at least an empty object so new checklists are created
-      // even if they don't have any checked items yet
-      const completionData = {
-        sections: sections.reduce((acc, section) => {
-          // Include all sections, not just ones with checked items
-          acc[section.id] = {
-            items: section.items.reduce((itemAcc, item) => {
-              itemAcc[item.id] = item.checked;
-              return itemAcc;
-            }, {} as Record<string, boolean>)
-          };
-          return acc;
-        }, {} as Record<string, { items: Record<string, boolean> }>),
-        lastUpdatedAt: new Date().toISOString()
-      };
-      
-      await saveCompletion(currentCompletionId, completionData);
-      
-      // Refresh list of available completions
-      await loadCompletions();
-      
-      // Show success message
-      setToastMessage('Progress saved successfully');
-      
-      // Clear message after 3 seconds
-      setTimeout(() => clearToastMessage(), 3000);
-    } catch (err) {
-      setError('Failed to save completion. Your progress is saved locally.');
-      console.error('Error saving completion:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Delete the current completion
-  const deleteCurrentCompletion = async () => {
-    if (!isAuthenticated || currentCompletionId === DEFAULT_COMPLETION_ID) return;
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      await deleteCompletion(currentCompletionId);
-      
-      // Reset to default completion
-      setCurrentCompletionId(DEFAULT_COMPLETION_ID);
-      
-      // Reset sections to initial state
-      setSections(initialSections);
-      
-      // Refresh list of available completions
-      await loadCompletions();
-      
-      setToastMessage('Checklist deleted successfully');
-    } catch (err) {
-      setError('Failed to delete checklist.');
-      console.error('Error deleting checklist:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const toggleItem = (sectionId: string, itemId: string) => {
-    setNextFocusItemId(null); // Clear previous focus intention first
-
-    setSections(prevSections => {
-      const newSections = prevSections.map(section => 
-        section.id === sectionId 
-          ? {
-              ...section,
-              items: section.items.map(item => 
-                item.id === itemId 
-                  ? { ...item, checked: !item.checked }
-                  : item
-              )
-            }
-          : section
+      const response = await fetch(
+        `${API_BASE_URL}/checklist?userId=${encodeURIComponent(user.login)}&checklistName=${encodeURIComponent(checklistName)}`, 
+        { 
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-github-user-id': user.login
+          }
+        }
       );
-
-      // --- Start: Logic to run AFTER sections are updated ---
-      const currentSection = newSections.find(s => s.id === sectionId);
-      let nextUncheckedItemIdForFocus: string | null = null;
-      let sectionJustCompletedId: string | null = null;
-
-      if (currentSection) {
-        const toggledItem = currentSection.items.find(i => i.id === itemId);
-        if (toggledItem && toggledItem.checked) { // If we just *checked* an item
-            const firstUnchecked = currentSection.items.find(item => !item.checked);
-            if (firstUnchecked) {
-                nextUncheckedItemIdForFocus = firstUnchecked.id;
-            } else {
-                // No unchecked items left, this section is complete
-                sectionJustCompletedId = sectionId;
-            }
-        }
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to delete checklist');
       }
-      
-      // Update states based on the newSections evaluation
-      // Schedule these updates to run after the current state update cycle
-      // by using a microtask (Promise.resolve().then()) or a zero-delay setTimeout.
-      // This ensures that AppContent's useEffect can react to these changes correctly.
-      Promise.resolve().then(() => {
-          if (nextUncheckedItemIdForFocus) {
-            setNextFocusItemId(nextUncheckedItemIdForFocus);
-          }
-          if (sectionJustCompletedId) {
-            setCompletedSectionIdToAdvanceFrom(sectionJustCompletedId);
-          }
-      });
-      // --- End: Logic to run AFTER sections are updated ---
-      
-      // Auto-save to API when an item is toggled
-      Promise.resolve().then(() => {
-        if (isAuthenticated) {
-          saveCurrentProgress().catch(console.error);
-        } else {
-          // Notify user that they need to authenticate to save to the server
-          setToastMessage('Changes saved locally. Sign in to sync across devices.');
-        }
-      });
-
-      return newSections;
-    });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
   };
-
-  const getSectionProgress = (sectionId: string): number => {
-    const section = sections.find(s => s.id === sectionId);
-    if (!section) return 0;
-    
-    const checkedItems = section.items.filter(item => item.checked).length;
-    return checkedItems / section.items.length * 100;
-  };
-
-  const getOverallProgress = (): number => {
-    const totalItems = sections.reduce((acc, section) => acc + section.items.length, 0);
-    const checkedItems = sections.reduce(
-      (acc, section) => acc + section.items.filter(item => item.checked).length, 
-      0
-    );
-    
-    return totalItems ? (checkedItems / totalItems) * 100 : 0;
-  };
-
-  const clearToastMessage = () => {
-    setToastMessage(null);
-  };
-
-  // Reset checklist to initial state without changing the current checklist name
-  const clearAllData = () => {
-    // Reset sections to initial state - create a fresh deep copy
-    const freshSections = JSON.parse(JSON.stringify(initialSections));
-    setSections(freshSections);
-    
-    // Reset other state
-    setNextFocusItemId(null);
-    setCompletedSectionIdToAdvanceFrom(null);
-    setError(null);
-    
-    // Show success toast
-    setToastMessage('Checklist reset successfully');
-  };
-
+  
   return (
-    <ChecklistContext.Provider 
-      value={{ 
-        sections, 
-        toggleItem, 
-        getSectionProgress, 
-        getOverallProgress,
-        nextFocusItemId,
-        setNextFocusItemId,
-        completedSectionIdToAdvanceFrom,
-        setCompletedSectionIdToAdvanceFrom,
-        isLoading: isLoading || apiLoading,
-        error: error || apiError,
-        saveCurrentProgress,
-        loadCompletions,
-        availableCompletions,
-        currentCompletionId,
-        setCurrentCompletionId,
-        deleteCurrentCompletion,
-        clearAllData,
-        toastMessage,
-        clearToastMessage
-      }}
-    >
+    <ChecklistContext.Provider value={{
+      saveChecklist,
+      getChecklists,
+      getChecklistIds,
+      getChecklist,
+      deleteChecklist,
+      isLoading,
+      error,
+      clearError
+    }}>
       {children}
     </ChecklistContext.Provider>
   );
 };
 
-export const useChecklist = (): ChecklistContextType => {
+export const useChecklist = () => {
   const context = useContext(ChecklistContext);
   if (context === undefined) {
     throw new Error('useChecklist must be used within a ChecklistProvider');
   }
+  
   return context;
-};
+}; 

@@ -6,21 +6,21 @@ import { Server, Save, Trash2, Plus, List, Github as GitHubIcon } from 'lucide-r
 const Header: React.FC = () => {
   const { 
     saveCurrentProgress, 
-    loadCompletions, 
-    availableCompletions, 
-    currentCompletionId, 
-    setCurrentCompletionId,
-    deleteCurrentCompletion,
+    loadChecklists, 
+    availableChecklists, 
+    currentChecklistId, 
+    setCurrentChecklistId,
+    deleteCurrentChecklist,
     clearAllData
   } = useChecklist();
   const { isAuthenticated, login } = useAuth();
-  const [showCompletions, setShowCompletions] = useState(false);
-  const [newTaskName, setNewTaskName] = useState('');
+  const [showChecklistsDropdown, setShowChecklistsDropdown] = useState(false);
+  const [newChecklistName, setNewChecklistName] = useState('');
   
   const handleCreateNew = async () => {
-    if (newTaskName.trim()) {
+    if (newChecklistName.trim()) {
       // Set the new checklist name first
-      setCurrentCompletionId(newTaskName.trim());
+      setCurrentChecklistId(newChecklistName.trim());
       
       // Then clear existing data to start fresh with the new checklist
       clearAllData();
@@ -28,12 +28,12 @@ const Header: React.FC = () => {
       // Save the new checklist with this name
       await saveCurrentProgress();
       
-      // Reload the list of completions to show the new one
-      await loadCompletions();
+      // Reload the list of checklists to show the new one
+      await loadChecklists();
       
       // Clear the input and close the dropdown
-      setNewTaskName('');
-      setShowCompletions(false);
+      setNewChecklistName('');
+      setShowChecklistsDropdown(false);
     }
   };
 
@@ -63,7 +63,7 @@ const Header: React.FC = () => {
         </div>
         
         <div className="flex md:flex-row flex-col items-center gap-4">
-          {/* Completions Management - Only visible when authenticated */}
+          {/* Checklists Management - Only visible when authenticated */}
           {isAuthenticated ? (
             <div className="relative">
               <div className="flex gap-2">
@@ -78,10 +78,10 @@ const Header: React.FC = () => {
                 
                 <button
                   onClick={() => {
-                    setShowCompletions(!showCompletions);
-                    if (!showCompletions) {
-                      // Refresh the list of completions when opening the dropdown
-                      loadCompletions();
+                    setShowChecklistsDropdown(!showChecklistsDropdown);
+                    if (!showChecklistsDropdown) {
+                      // Refresh the list of checklists when opening the dropdown
+                      loadChecklists();
                     }
                   }}
                   className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 rounded transition-colors"
@@ -91,59 +91,59 @@ const Header: React.FC = () => {
                   <span className="hidden sm:inline">Checklists</span>
                 </button>
                 
-                {showCompletions && (
+                {showChecklistsDropdown && (
                   <div className="absolute top-full right-0 mt-2 w-64 bg-white text-gray-800 rounded-md shadow-lg z-50 p-2">
                     <h3 className="font-medium text-sm px-2 py-1 border-b border-gray-200">Your Checklists</h3>
                     
-                    {/* Create new completion */}
+                    {/* Create new checklist */}
                     <div className="p-2 border-b border-gray-200">
                       <div className="flex gap-1 mb-1">
                         <input
                           type="text"
-                          value={newTaskName}
-                          onChange={(e) => setNewTaskName(e.target.value)}
+                          value={newChecklistName}
+                          onChange={(e) => setNewChecklistName(e.target.value)}
                           placeholder="New checklist name..."
                           className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
                         />
                         <button
                           onClick={handleCreateNew}
                           className="p-1 bg-green-500 text-white rounded hover:bg-green-600"
-                          disabled={!newTaskName.trim()}
+                          disabled={!newChecklistName.trim()}
                         >
                           <Plus className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
                     
-                    {/* List of completions */}
+                    {/* List of checklists */}
                     <div className="max-h-48 overflow-y-auto">
-                      {availableCompletions.length === 0 ? (
+                      {availableChecklists.length === 0 ? (
                         <p className="text-sm text-gray-600 p-2">No saved checklists yet.</p>
                       ) : (
-                        availableCompletions.map((completion) => (
+                        availableChecklists.map((checklist) => (
                           <div 
-                            key={completion.taskIdentifier}
-                            className={`flex justify-between items-center p-2 hover:bg-gray-100 transition-colors cursor-pointer rounded ${currentCompletionId === completion.taskIdentifier ? 'bg-indigo-50' : ''}`}
+                            key={checklist.checklistName}
+                            className={`flex justify-between items-center p-2 hover:bg-gray-100 transition-colors cursor-pointer rounded ${currentChecklistId === checklist.checklistName ? 'bg-indigo-50' : ''}`}
                             onClick={async () => {
                               // First set the ID
-                              setCurrentCompletionId(completion.taskIdentifier);
+                              setCurrentChecklistId(checklist.checklistName);
                               
-                              // Then load the completions to update the UI
-                              await loadCompletions();
+                              // Then load the checklists to update the UI
+                              await loadChecklists();
                               
                               // Close the dropdown
-                              setShowCompletions(false);
+                              setShowChecklistsDropdown(false);
                             }}
                           >
                             <div>
-                              <div className="font-medium text-sm">{completion.taskIdentifier}</div>
-                              <div className="text-xs text-gray-500">{formatDate(completion.lastUpdatedAt)}</div>
+                              <div className="font-medium text-sm">{checklist.checklistName}</div>
+                              <div className="text-xs text-gray-500">{formatDate(checklist.lastUpdatedAt)}</div>
                             </div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (window.confirm('Are you sure you want to delete this checklist?')) {
-                                  deleteCurrentCompletion();
+                                  deleteCurrentChecklist();
                                 }
                               }}
                               className="p-1 text-red-500 hover:text-red-700 rounded"
