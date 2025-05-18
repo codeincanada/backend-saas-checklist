@@ -21,6 +21,9 @@ interface ChecklistContextType {
   currentCompletionId: string;
   setCurrentCompletionId: (id: string) => void;
   deleteCurrentCompletion: () => Promise<void>;
+  clearAllData: () => void;
+  toastMessage: string | null;
+  clearToastMessage: () => void;
 }
 
 const ChecklistContext = createContext<ChecklistContextType | undefined>(undefined);
@@ -47,6 +50,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
   const [currentCompletionId, setCurrentCompletionId] = useState<string>(DEFAULT_COMPLETION_ID);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Load completions from localStorage (fallback) or try to load from API if authenticated
   useEffect(() => {
@@ -268,6 +272,30 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     return totalItems ? (checkedItems / totalItems) * 100 : 0;
   };
 
+  const clearToastMessage = () => {
+    setToastMessage(null);
+  };
+
+  // Reset checklist to initial state and clear localStorage
+  const clearAllData = () => {
+    // Reset to default completion ID
+    setCurrentCompletionId(DEFAULT_COMPLETION_ID);
+    
+    // Reset sections to initial state
+    setSections(initialSections);
+    
+    // Clear localStorage
+    localStorage.removeItem('microservice-checklist');
+    
+    // Reset other state
+    setNextFocusItemId(null);
+    setCompletedSectionIdToAdvanceFrom(null);
+    setError(null);
+    
+    // Show success toast
+    setToastMessage('All progress has been cleared successfully');
+  };
+
   return (
     <ChecklistContext.Provider 
       value={{ 
@@ -286,7 +314,10 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
         availableCompletions,
         currentCompletionId,
         setCurrentCompletionId,
-        deleteCurrentCompletion
+        deleteCurrentCompletion,
+        clearAllData,
+        toastMessage,
+        clearToastMessage
       }}
     >
       {children}

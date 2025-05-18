@@ -19,7 +19,9 @@ const AppContent: React.FC = () => {
     completedSectionIdToAdvanceFrom, 
     setCompletedSectionIdToAdvanceFrom,
     isLoading,
-    error
+    error,
+    toastMessage,
+    clearToastMessage
   } = useChecklist();
   
   const { authError, clearAuthError } = useAuth();
@@ -66,6 +68,15 @@ const AppContent: React.FC = () => {
           onClose={clearAuthError} 
         />
       )}
+      
+      {toastMessage && (
+        <Toast 
+          message={toastMessage} 
+          type="success" 
+          onClose={clearToastMessage} 
+        />
+      )}
+      
       <Header />
       <main className="py-6 container mx-auto px-4 pb-24">
         {/* Loading and Error Indicators */}

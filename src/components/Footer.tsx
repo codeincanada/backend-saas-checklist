@@ -1,9 +1,17 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Github, LogOut } from 'lucide-react';
+import { useChecklist } from '../contexts/ChecklistContext';
+import { Github, LogOut, Trash2 } from 'lucide-react';
 
 const Footer: React.FC = () => {
   const { isAuthenticated, user, login, logout, loading } = useAuth();
+  const { clearAllData } = useChecklist();
+
+  const handleClearClick = () => {
+    if (confirm('Are you sure you want to clear all progress? This action cannot be undone.')) {
+      clearAllData();
+    }
+  };
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 shadow-lg z-10">
@@ -13,7 +21,16 @@ const Footer: React.FC = () => {
         </div>
         
         {/* Auth Section */}
-        <div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleClearClick}
+            className="flex items-center gap-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded transition-colors text-white text-sm shadow-sm"
+            title="Clear all data"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>Clear</span>
+          </button>
+          
           {loading ? (
             <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse"></div>
           ) : isAuthenticated && user ? (
