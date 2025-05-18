@@ -19,11 +19,15 @@ const Header: React.FC = () => {
   
   const handleCreateNew = async () => {
     if (newChecklistName.trim()) {
-      // Set the new checklist name first
-      setCurrentChecklistId(newChecklistName.trim());
+      // Store the new checklist name
+      const newName = newChecklistName.trim();
       
-      // Then clear existing data to start fresh with the new checklist
+      // Clear existing data to start fresh with the new checklist
       clearAllData();
+      
+      // Set the new checklist name AFTER calling clearAllData
+      // This ensures the name isn't reset to the default
+      setCurrentChecklistId(newName);
       
       // Save the new checklist with this name
       await saveCurrentProgress();

@@ -67,8 +67,14 @@ const AppContent: React.FC = () => {
   const createNewChecklist = async () => {
     if (!newChecklistName.trim()) return;
     
+    // Store the new checklist name
+    const newName = newChecklistName.trim();
+    
+    // Clear existing data
+    // clearAllData(); // App.tsx doesn't have this, which is good
+    
     // Set new checklist ID to be used by the API
-    setCurrentChecklistId(newChecklistName.trim());
+    setCurrentChecklistId(newName);
     
     // Create a new empty checklist by saving current progress with the new ID
     await saveCurrentProgress();
