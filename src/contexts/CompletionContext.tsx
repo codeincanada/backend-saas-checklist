@@ -2,9 +2,7 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 
 // Define the API base URL - will use the same one as the auth function for now
-const API_BASE_URL = import.meta.env.PROD ? 
-  'https://github-auth-function-20556.azurewebsites.net/api' : 
-  'http://localhost:7071/api';
+const API_BASE_URL = 'https://github-auth-function-20556.azurewebsites.net/api';
 
 interface CompletionData {
   sections: Record<string, {
