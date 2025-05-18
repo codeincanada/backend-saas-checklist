@@ -448,137 +448,157 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     }
   };
 
-  // Save current progress to the API
+  // Function to save current progress to the backend
   const saveCurrentProgress = async () => {
-    if (!isAuthenticated) return;
-    
+    if (!isAuthenticated || !user || !currentChecklistId) {
+      // console.warn('Save progress skipped: not authenticated, no user, or no currentChecklistId');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
-    
+
+    const contentToSave: ChecklistContent = {
+      sections: sections.reduce((acc, section) => {
+        acc[section.id] = {
+          items: section.items.reduce((itemAcc, item) => {
+            itemAcc[item.id] = item.checked;
+            return itemAcc;
+          }, {} as Record<string, boolean>)
+        };
+        return acc;
+      }, {} as Record<string, { items: Record<string, boolean> }>),
+      lastUpdatedAt: new Date().toISOString(),
+    };
+
     try {
-      // Console log to debug checklist ID issues
-      console.log('Saving checklist with ID:', currentChecklistId);
-      
-      // Check if we have a valid checklist ID to save with
-      if (!currentChecklistId) {
-        setError('Cannot save: No checklist ID specified');
-        console.error('Cannot save: No checklist ID specified');
-        return;
-      }
-      
-      // Force the currentChecklistId to be a local variable to avoid race conditions
-      const idToSave = currentChecklistId;
-      console.log('Using saved ID to avoid race conditions:', idToSave);
-      
-      // Always include at least an empty object so new checklists are created
-      // even if they don't have any checked items yet
-      const checklistData = {
-        sections: sections.reduce((acc, section) => {
-          // Include all sections, not just ones with checked items
-          acc[section.id] = {
-            items: section.items.reduce((itemAcc, item) => {
-              itemAcc[item.id] = item.checked;
-              return itemAcc;
-            }, {} as Record<string, boolean>)
-          };
-          return acc;
-        }, {} as Record<string, { items: Record<string, boolean> }>),
-        lastUpdatedAt: new Date().toISOString()
-      };
-      
-      console.log('Preparing to save checklist with data:', {
-        checklistId: idToSave,
-        dataSize: JSON.stringify(checklistData).length,
-        timestamp: checklistData.lastUpdatedAt
-      });
-      
-      await saveChecklist(idToSave, checklistData);
-      
-      // Refresh list of available checklists
-      await loadChecklists();
-      
-      // Show success message
-      setToastMessage(`Progress saved successfully for checklist: ${idToSave}`);
-      
-      // Clear message after 3 seconds
-      setTimeout(() => clearToastMessage(), 3000);
+      await updateChecklist(currentChecklistId, contentToSave); // Assumes updateChecklist handles PUT correctly
+      setToastMessage('Progress saved successfully!');
+      // console.log('Progress saved for checklist:', currentChecklistId);
+      await loadChecklists(); // Refresh available checklists to show new lastUpdated times
     } catch (err) {
-      setError('Failed to save checklist. Your progress is saved locally.');
-      console.error('Error saving checklist:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save progress');
+      setToastMessage('Error saving progress.');
+      // console.error('Error saving progress:', err);
     } finally {
       setIsLoading(false);
+      setTimeout(clearToastMessage, 3000); 
     }
   };
 
   const toggleItem = (sectionId: string, itemId: string) => {
-    setNextFocusItemId(null); // Clear previous focus intention first
+    // We need to get the new 'checked' state. 
+    // It's tricky because setSections is async.
+    // Let's find the current state first, then toggle, then use that for the API.
 
-    setSections(prevSections => {
-      const newSections = prevSections.map(section => 
-        section.id === sectionId 
-          ? {
-              ...section,
-              items: section.items.map(item => 
-                item.id === itemId 
-                  ? { ...item, checked: !item.checked }
-                  : item
-              )
-            }
-          : section
-      );
+    const currentSection = sections.find(s => s.id === sectionId);
+    const currentItem = currentSection?.items.find(i => i.id === itemId);
+    
+    if (!currentItem) {
+      console.error("Item not found for toggling:", sectionId, itemId);
+      setToastMessage("Error: Item not found.");
+      setTimeout(clearToastMessage, 3000);
+      return;
+    }
 
-      // --- Start: Logic to run AFTER sections are updated ---
-      const currentSection = newSections.find(s => s.id === sectionId);
-      let nextUncheckedItemIdForFocus: string | null = null;
-      let sectionJustCompletedId: string | null = null;
+    const newIsChecked = !currentItem.checked; // This is the state we want to send to the API
 
-      if (currentSection) {
-        const itemJustToggled = currentSection.items.find(item => item.id === itemId);
-        
-        // If we just checked an item (not unchecked)
-        if (itemJustToggled?.checked) {
-          // Find the next unchecked item in this section
-          const nextUncheckedItem = currentSection.items.find(
-            item => !item.checked && item.id !== itemId
-          );
-          
-          if (nextUncheckedItem) {
-            // Still unchecked items in this section
-            nextUncheckedItemIdForFocus = nextUncheckedItem.id;
-          } else {
-            // Section just completed! Find next section with unchecked items
-            sectionJustCompletedId = sectionId;
-            
-            const currentSectionIndex = newSections.findIndex(s => s.id === sectionId);
-            if (currentSectionIndex !== -1) {
-              // Try to find the next section with unchecked items
-              for (let i = currentSectionIndex + 1; i < newSections.length; i++) {
-                const nextSection = newSections[i];
-                const firstUncheckedItemInNextSection = nextSection.items.find(item => !item.checked);
-                
-                if (firstUncheckedItemInNextSection) {
-                  nextUncheckedItemIdForFocus = firstUncheckedItemInNextSection.id;
-                  break;
-                }
+    // Optimistic UI update
+    setSections(prevSections =>
+      prevSections.map(section => {
+        if (section.id === sectionId) {
+          return {
+            ...section,
+            items: section.items.map(item => {
+              if (item.id === itemId) {
+                return { ...item, checked: newIsChecked }; // Use newIsChecked
               }
-            }
-          }
+              return item;
+            }),
+          };
         }
-      }
-      
-      // Set the next item to auto-focus
-      if (nextUncheckedItemIdForFocus) {
-        setNextFocusItemId(nextUncheckedItemIdForFocus);
-      }
-      
-      // Set the section we just completed (if applicable)
-      if (sectionJustCompletedId) {
-        setCompletedSectionIdToAdvanceFrom(sectionJustCompletedId);
-      }
-      // --- End: Logic to run AFTER sections are updated ---
+        return section;
+      })
+    );
 
-      return newSections;
-    });
+    // After optimistic update, call the API
+    if (isAuthenticated && user && currentChecklistId) {
+      // console.log(`Toggling item via API: ${itemId} in section: ${sectionId} to ${newIsChecked} for checklist: ${currentChecklistId}`);
+      
+      // setIsLoading(true); // Consider a more granular loading state for item toggle
+
+      fetch(`${API_BASE_URL}/checklist/item-status`, {
+        method: 'POST', 
+        headers: {
+          'Content-Type': 'application/json',
+          'x-github-user-id': user.login,
+        },
+        body: JSON.stringify({
+          checklistName: currentChecklistId,
+          sectionId,
+          itemId,
+          isChecked: newIsChecked, // Send the determined new state
+        }),
+      })
+      .then(async response => {
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Failed to update item status and parse error response.' }));
+          throw new Error(errorData.error || `API Error: ${response.status} - ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        setToastMessage(data.message || 'Item status updated!');
+        console.log('Item status updated via API:', data);
+        // Potentially update lastUpdatedAt on the client from response if backend provides it
+        // For now, a full saveCurrentProgress or loadChecklists would refresh this.
+        // Or, update the specific checklist's lastUpdatedAt if it's part of the availableChecklists state.
+        // Trigger a refresh of lastUpdated times for the active checklist if applicable
+        setAvailableChecklists(prev => prev.map(cl => 
+            cl.checklistName === currentChecklistId 
+            ? { ...cl, lastUpdatedAt: new Date().toISOString() } // Optimistically update, or use server's time if returned
+            : cl
+        ));
+
+      })
+      .catch(err => {
+        setError(err instanceof Error ? err.message : 'Unknown error updating item status');
+        setToastMessage('Error updating item. Reverting change.');
+        // console.error('Failed to update item status via API:', err);
+        
+        // Revert the optimistic update
+        setSections(prevSections =>
+          prevSections.map(section => {
+            if (section.id === sectionId) {
+              return {
+                ...section,
+                items: section.items.map(item => {
+                  if (item.id === itemId) {
+                    return { ...item, checked: !newIsChecked }; // Revert to original state
+                  }
+                  return item;
+                }),
+              };
+            }
+            return section;
+          })
+        );
+      })
+      .finally(() => {
+        // setIsLoading(false); 
+        setTimeout(clearToastMessage, 3000);
+      });
+    } else {
+      // console.warn('Cannot update item status via API: User not authenticated, or checklist/item details missing.');
+      if (!isAuthenticated || !user) {
+        setToastMessage("Login to save changes to the cloud.");
+        setTimeout(clearToastMessage, 3000);
+      } else if (!currentChecklistId) {
+        setToastMessage("Select a checklist to save changes.");
+        setTimeout(clearToastMessage, 3000);
+      }
+      // Changes are still saved to localStorage by the useEffect hook.
+    }
   };
 
   const getSectionProgress = (sectionId: string): number => {
