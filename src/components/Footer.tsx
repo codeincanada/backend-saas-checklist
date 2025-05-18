@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
 
   const handleClearClick = () => {
     if (confirm('Are you sure you want to clear all progress? This action cannot be undone.')) {
-      clearAllData();
+      clearAllData({ preserveChecklistId: false });
     }
   };
 
