@@ -424,13 +424,12 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
           }
         }
       } else if (!!currentChecklistId && checklistIds.length === 0) {
-        // Create an empty checklist when selecting a new ID that doesn't exist yet
+        // This is a case where we have a currentChecklistId but it doesn't exist on the server yet
+        // Reset to initial state for this new checklist
         setSections(initialSections);
         
-        // Create the new empty checklist in the backend
-        await saveCurrentProgress();
-        
-        setToastMessage(`Created new checklist: ${currentChecklistId}`);
+        // We only create a new checklist entry when an item is modified, not when just selecting a checklist.
+        // So we don't call saveCurrentProgress() here anymore
         
         // Add to available checklists
         formattedChecklists.push({
