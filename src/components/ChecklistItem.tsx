@@ -40,6 +40,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, sectionId }) => {
   const handleToggle = () => {
     console.log(`Toggling item ${item.id} in section ${sectionId}`);
     setIsSaving(true);
+    // This will trigger the API call in toggleItem function to save only this item's status
     toggleItem(sectionId, item.id);
     // The saving state will be reset when the toast message indicates completion
   };

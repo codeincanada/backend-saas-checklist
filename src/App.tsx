@@ -162,10 +162,11 @@ const AppContent: React.FC = () => {
                             currentChecklistId === checklist.checklistName ? 'bg-indigo-50 text-indigo-700' : ''
                           }`}
                           onClick={async () => {
-                            // Set the checklist ID
+                            // Set the checklist ID without triggering a save operation
+                            console.log(`Selecting checklist: ${checklist.checklistName}`);
                             setCurrentChecklistId(checklist.checklistName);
                             
-                            // Load the checklist data
+                            // loadChecklists will just load the data without saving
                             await loadChecklists();
                             
                             // Close the dropdown
