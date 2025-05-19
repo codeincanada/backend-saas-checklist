@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChecklist } from '../contexts/ChecklistContext';
 import { ChecklistItem as ChecklistItemType } from '../types';
-import { Check, Info } from 'lucide-react';
+import { Check, Info, Save } from 'lucide-react';
 
 interface ChecklistItemProps {
   item: ChecklistItemType;
@@ -9,9 +9,18 @@ interface ChecklistItemProps {
 }
 
 const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, sectionId }) => {
-  const { toggleItem, nextFocusItemId, setNextFocusItemId } = useChecklist();
+  const { toggleItem, nextFocusItemId, setNextFocusItemId, toastMessage } = useChecklist();
   const [showInfo, setShowInfo] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const itemRef = useRef<HTMLDivElement>(null);
+
+  // Track save operations
+  useEffect(() => {
+    if (toastMessage?.includes('database')) {
+      // Toast message indicates database operation completed
+      setIsSaving(false);
+    }
+  }, [toastMessage]);
 
   useEffect(() => {
     if (item.id === nextFocusItemId && itemRef.current) {
@@ -27,22 +36,37 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, sectionId }) => {
     }
   }, [item.id, nextFocusItemId, setNextFocusItemId]);
 
+  // Handle item click
+  const handleToggle = () => {
+    console.log(`Toggling item ${item.id} in section ${sectionId}`);
+    setIsSaving(true);
+    toggleItem(sectionId, item.id);
+    // The saving state will be reset when the toast message indicates completion
+  };
+
   return (
     <div 
       ref={itemRef} 
-      className="border border-gray-200 rounded-lg mb-2 hover:border-gray-300 hover:shadow-sm transition-all duration-200"
+      className={`border border-gray-200 rounded-lg mb-2 hover:border-gray-300 hover:shadow-sm transition-all duration-200 ${isSaving ? 'opacity-80' : ''}`}
       data-item-id={item.id}
     >
       <div className="p-3 flex items-start gap-3">
         <div 
-          className={`flex-shrink-0 w-6 h-6 rounded border ${
+          className={`flex-shrink-0 w-6 h-6 rounded border relative ${
             item.checked 
               ? 'bg-green-500 border-green-500' 
               : 'border-gray-300'
-          } flex items-center justify-center cursor-pointer transition-colors duration-200`}
-          onClick={() => toggleItem(sectionId, item.id)}
+          } flex items-center justify-center cursor-pointer transition-colors duration-200 ${
+            isSaving ? 'animate-pulse' : ''
+          }`}
+          onClick={handleToggle}
         >
           {item.checked && <Check className="h-4 w-4 text-white" />}
+          {isSaving && (
+            <div className="absolute -top-2 -right-2">
+              <Save className="h-3 w-3 text-blue-500 animate-spin" />
+            </div>
+          )}
         </div>
         
         <div className="flex-grow">
@@ -51,9 +75,10 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, sectionId }) => {
               className={`text-gray-800 cursor-pointer ${
                 item.checked ? 'line-through text-gray-500' : ''
               }`}
-              onClick={() => toggleItem(sectionId, item.id)}
+              onClick={handleToggle}
             >
               {item.text}
+              {isSaving && <span className="ml-2 text-xs text-blue-500">Saving...</span>}
             </label>
             
             {item.description && (

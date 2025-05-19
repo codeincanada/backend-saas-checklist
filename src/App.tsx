@@ -118,7 +118,8 @@ const AppContent: React.FC = () => {
       {toastMessage && (
         <Toast 
           message={toastMessage} 
-          type="success" 
+          type={toastMessage.includes('database') ? 'database' : 
+                toastMessage.includes('Error') ? 'error' : 'success'} 
           onClose={clearToastMessage} 
         />
       )}

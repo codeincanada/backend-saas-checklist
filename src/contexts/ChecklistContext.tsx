@@ -521,26 +521,31 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       })
     );
 
-    // After optimistic update, call the API
+    // After optimistic update, call the API immediately to save to the database
     if (isAuthenticated && user && currentChecklistId) {
-      // console.log(`Toggling item via API: ${itemId} in section: ${sectionId} to ${newIsChecked} for checklist: ${currentChecklistId}`);
+      console.log(`Saving item status to database: ${itemId} in section ${sectionId} to ${newIsChecked ? 'completed' : 'uncompleted'}`);
       
-      // setIsLoading(true); // Consider a more granular loading state for item toggle
-
+      // Prepare request body with all required fields
+      const requestBody = {
+        checklistName: currentChecklistId,
+        sectionId,
+        itemId,
+        isChecked: newIsChecked,
+      };
+      
+      console.log("API request payload:", JSON.stringify(requestBody));
+      
+      // Execute the API call with proper headers and body
       fetch(`${API_BASE_URL}/checklist/item-status`, {
         method: 'POST', 
         headers: {
           'Content-Type': 'application/json',
           'x-github-user-id': user.login,
         },
-        body: JSON.stringify({
-          checklistName: currentChecklistId,
-          sectionId,
-          itemId,
-          isChecked: newIsChecked, // Send the determined new state
-        }),
+        body: JSON.stringify(requestBody),
       })
       .then(async response => {
+        console.log(`API response status: ${response.status}`);
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Failed to update item status and parse error response.' }));
           throw new Error(errorData.error || `API Error: ${response.status} - ${response.statusText}`);
@@ -548,23 +553,20 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
         return response.json();
       })
       .then(data => {
-        setToastMessage(data.message || 'Item status updated!');
-        console.log('Item status updated via API:', data);
-        // Potentially update lastUpdatedAt on the client from response if backend provides it
-        // For now, a full saveCurrentProgress or loadChecklists would refresh this.
-        // Or, update the specific checklist's lastUpdatedAt if it's part of the availableChecklists state.
-        // Trigger a refresh of lastUpdated times for the active checklist if applicable
+        console.log('Success: Item status saved to database:', data);
+        setToastMessage(data.message || 'Item status updated in database!');
+        
+        // Update the lastUpdatedAt timestamp in the available checklists
         setAvailableChecklists(prev => prev.map(cl => 
             cl.checklistName === currentChecklistId 
-            ? { ...cl, lastUpdatedAt: new Date().toISOString() } // Optimistically update, or use server's time if returned
+            ? { ...cl, lastUpdatedAt: new Date().toISOString() } 
             : cl
         ));
-
       })
       .catch(err => {
-        setError(err instanceof Error ? err.message : 'Unknown error updating item status');
-        setToastMessage('Error updating item. Reverting change.');
-        // console.error('Failed to update item status via API:', err);
+        console.error('Error saving item status to database:', err);
+        setError(err instanceof Error ? err.message : 'Error saving to database');
+        setToastMessage('Error saving to database. Reverting change.');
         
         // Revert the optimistic update
         setSections(prevSections =>
@@ -585,16 +587,17 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
         );
       })
       .finally(() => {
-        // setIsLoading(false); 
         setTimeout(clearToastMessage, 3000);
       });
     } else {
-      // console.warn('Cannot update item status via API: User not authenticated, or checklist/item details missing.');
+      // Not authenticated or no checklist ID
       if (!isAuthenticated || !user) {
-        setToastMessage("Login to save changes to the cloud.");
+        setToastMessage("Login to save changes to the database.");
+        console.warn("Not saving to database: User not authenticated");
         setTimeout(clearToastMessage, 3000);
       } else if (!currentChecklistId) {
-        setToastMessage("Select a checklist to save changes.");
+        setToastMessage("Select a checklist to save changes to the database.");
+        console.warn("Not saving to database: No checklist selected");
         setTimeout(clearToastMessage, 3000);
       }
       // Changes are still saved to localStorage by the useEffect hook.
