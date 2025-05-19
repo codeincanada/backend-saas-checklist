@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { AlertCircle, X, Save, CheckCircle, Info as InfoIcon } from 'lucide-react';
+import { AlertCircle, X, CheckCircle, Info as InfoIcon } from 'lucide-react';
 
 interface ToastProps {
   message: string;
@@ -35,7 +35,7 @@ const Toast: React.FC<ToastProps> = ({
     warning: 'bg-yellow-100 border-yellow-400 text-yellow-800',
     success: 'bg-green-100 border-green-400 text-green-800',
     info: 'bg-blue-100 border-blue-400 text-blue-800',
-    database: 'bg-purple-100 border-purple-400 text-purple-800'
+    database: 'bg-indigo-100 border-indigo-400 text-indigo-800'
   };
 
   const iconColors = {
@@ -43,19 +43,14 @@ const Toast: React.FC<ToastProps> = ({
     warning: 'text-yellow-500',
     success: 'text-green-500',
     info: 'text-blue-500',
-    database: 'text-purple-500'
+    database: 'text-indigo-500'
   };
   
   // Select the right icon based on message type
   const getIcon = () => {
     if (effectiveType === 'error') return <AlertCircle className={`h-5 w-5 ${iconColors.error}`} />;
     if (effectiveType === 'success') return <CheckCircle className={`h-5 w-5 ${iconColors.success}`} />;
-    if (effectiveType === 'database') {
-      // Show appropriate icon based on operation status
-      return message.includes('updated in database') || message.includes('saved to database') 
-        ? <CheckCircle className={`h-5 w-5 ${iconColors.database}`} />
-        : <Save className={`h-5 w-5 ${iconColors.database} ${message.includes('Saving') ? 'animate-spin' : ''}`} />;
-    }
+    if (effectiveType === 'database') return <CheckCircle className={`h-5 w-5 ${iconColors.database}`} />;
     if (effectiveType === 'warning') return <AlertCircle className={`h-5 w-5 ${iconColors.warning}`} />;
     return <InfoIcon className={`h-5 w-5 ${iconColors.info}`} />;
   };

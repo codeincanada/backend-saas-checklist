@@ -554,7 +554,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       })
       .then(data => {
         console.log('Success: Item status saved to database:', data);
-        setToastMessage(data.message || 'Item status updated in database!');
+        setToastMessage(data.message || 'Status updated successfully');
         
         // Update the lastUpdatedAt timestamp in the available checklists
         setAvailableChecklists(prev => prev.map(cl => 
@@ -566,7 +566,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       .catch(err => {
         console.error('Error saving item status to database:', err);
         setError(err instanceof Error ? err.message : 'Error saving to database');
-        setToastMessage('Error saving to database. Reverting change.');
+        setToastMessage('Error updating status');
         
         // Revert the optimistic update
         setSections(prevSections =>
@@ -592,11 +592,11 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     } else {
       // Not authenticated or no checklist ID
       if (!isAuthenticated || !user) {
-        setToastMessage("Login to save changes to the database.");
+        setToastMessage("Login to save changes");
         console.warn("Not saving to database: User not authenticated");
         setTimeout(clearToastMessage, 3000);
       } else if (!currentChecklistId) {
-        setToastMessage("Select a checklist to save changes to the database.");
+        setToastMessage("Select a checklist to save changes");
         console.warn("Not saving to database: No checklist selected");
         setTimeout(clearToastMessage, 3000);
       }
