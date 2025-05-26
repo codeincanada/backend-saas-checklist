@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useChecklist } from '../contexts/ChecklistContext';
 import { LogOut, Github } from 'lucide-react';
+import OverallProgress from './OverallProgress';
 
 const Footer: React.FC = () => {
   const { isAuthenticated, user, login, logout, loading } = useAuth();
@@ -34,6 +35,7 @@ const Footer: React.FC = () => {
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 shadow-lg z-10">
+      <OverallProgress />
       <div className="container mx-auto flex justify-between items-center">
         <div className="text-xs text-gray-500">
           {showLastUpdated ? (
