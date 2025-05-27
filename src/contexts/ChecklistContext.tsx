@@ -156,7 +156,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       return [];
     }
     
-    setIsLoading(true);
+    // setIsLoading(true);
     setError(null);
     
     try {
@@ -190,7 +190,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       return null;
     }
     
-    setIsLoading(true);
+    // setIsLoading(true);
     setError(null);
     
     try {

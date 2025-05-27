@@ -48,29 +48,29 @@ const Footer: React.FC = () => {
         {/* Auth Section */}
         <div className="flex items-center gap-2">
           {loading ? (
-            <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse"></div>
+            <div className="h-9 w-9 rounded-full bg-gray-200 dark:bg-gray-600 animate-pulse"></div>
           ) : isAuthenticated && user ? (
-            <div className="flex items-center gap-2 bg-gray-100 p-1 pl-2 pr-3 rounded-lg">
+            <div className="flex items-center gap-3 bg-gray-100 dark:bg-gray-700 p-2 pl-3 pr-4 rounded-lg border border-gray-200 dark:border-gray-600 transition-colors">
               <img 
                 src={user.avatar_url} 
                 alt={user.login} 
-                className="h-6 w-6 rounded-full border border-gray-300"
+                className="h-8 w-8 rounded-full border-2 border-gray-300 dark:border-gray-500 shadow-sm"
               />
-              <span className="text-sm font-medium hidden sm:block">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200 hidden sm:block">
                 {user.name || user.login}
               </span>
               <button 
                 onClick={logout}
-                className="ml-1 p-1 hover:bg-gray-200 rounded transition-colors"
+                className="ml-1 p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors group"
                 title="Logout"
               >
-                <LogOut className="h-4 w-4 text-gray-600" />
+                <LogOut className="h-4 w-4 text-gray-600 dark:text-gray-300 group-hover:text-gray-800 dark:group-hover:text-gray-100" />
               </button>
             </div>
           ) : (
             <button
               onClick={login}
-              className="flex items-center gap-1 px-3 py-1.5 bg-purple-500 hover:bg-purple-600 rounded transition-colors text-white text-sm shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700 rounded-lg transition-colors text-white text-sm shadow-sm font-medium"
             >
               <Github className="h-4 w-4" />
               <span>Login</span>
