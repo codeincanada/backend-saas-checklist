@@ -48,7 +48,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, sectionId }) => {
   return (
     <div 
       ref={itemRef} 
-      className="border border-gray-200 rounded-lg mb-2 hover:border-gray-300 hover:shadow-sm transition-all duration-200"
+      className="border border-gray-200 dark:border-gray-600 rounded-lg mb-2 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-sm transition-all duration-200 bg-white dark:bg-gray-700"
       data-item-id={item.id}
     >
       <div className="p-3 flex items-start gap-3">
@@ -56,7 +56,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, sectionId }) => {
           className={`flex-shrink-0 w-6 h-6 rounded border ${
             item.checked 
               ? 'bg-green-500 border-green-500' 
-              : 'border-gray-300'
+              : 'border-gray-300 dark:border-gray-500'
           } flex items-center justify-center cursor-pointer transition-colors duration-200 ${
             isSaving ? 'opacity-70' : ''
           }`}
@@ -69,7 +69,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, sectionId }) => {
           <div className="flex justify-between items-start">
             <label 
               className={`text-gray-800 cursor-pointer ${
-                item.checked ? 'line-through text-gray-500' : ''
+                item.checked ? 'line-through text-gray-500 dark:text-gray-400' : 'dark:text-gray-200'
               }`}
               onClick={handleToggle}
             >
@@ -79,7 +79,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, sectionId }) => {
             {item.description && (
               <button 
                 onClick={() => setShowInfo(!showInfo)}
-                className="ml-2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                className="ml-2 p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
               >
                 <Info className="h-4 w-4" />
               </button>
@@ -87,7 +87,7 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, sectionId }) => {
           </div>
           
           {showInfo && item.description && (
-            <div className="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded border border-gray-100">
+            <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-600 p-2 rounded border border-gray-100 dark:border-gray-500">
               {item.description}
             </div>
           )}

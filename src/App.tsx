@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChecklistProvider, useChecklist } from './contexts/ChecklistContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Checklist from './components/Checklist';
@@ -106,7 +107,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       {authError && (
         <Toast 
           message={authError} 
@@ -133,7 +134,7 @@ const AppContent: React.FC = () => {
               <div></div>
               <div className="relative">
                 <button 
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md flex items-center"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-md flex items-center transition-colors"
                   onClick={() => {
                     setShowChecklistsDropdown(!showChecklistsDropdown);
                     if (!showChecklistsDropdown) {
@@ -149,9 +150,9 @@ const AppContent: React.FC = () => {
                 </button>
                 
                 {showChecklistsDropdown && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-md z-50">
-                    <div className="p-3 border-b border-gray-200">
-                      <h3 className="font-medium text-gray-700">Your Checklists</h3>
+                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 shadow-lg rounded-md z-50 border dark:border-gray-700">
+                    <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                      <h3 className="font-medium text-gray-700 dark:text-gray-200">Your Checklists</h3>
                     </div>
                     
                     <div className="max-h-64 overflow-y-auto">
@@ -293,11 +294,13 @@ function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <ChecklistProvider>
-        <AppContent />
-      </ChecklistProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ChecklistProvider>
+          <AppContent />
+        </ChecklistProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

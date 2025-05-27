@@ -11,14 +11,14 @@ interface CategoryTabsProps {
 
 const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, activeCategory, onSelectCategory, getSectionProgress }) => {
   return (
-    <div className="mb-6 border-b border-gray-200 overflow-x-auto whitespace-nowrap">
+    <div className="mb-6 border-b border-gray-200 dark:border-gray-700 overflow-x-auto whitespace-nowrap">
       <nav className="-mb-px flex space-x-1 sm:space-x-4" aria-label="Tabs">
         {categories.map((category, index) => {
           const progress = getSectionProgress(category.id);
           let progressIndicator: React.ReactNode = null;
 
           if (progress === 0) {
-            progressIndicator = <Circle className="h-3 w-3 ml-1.5 text-gray-400" />;
+            progressIndicator = <Circle className="h-3 w-3 ml-1.5 text-gray-400 dark:text-gray-500" />;
           } else if (progress === 100) {
             progressIndicator = <CheckCircle2 className="h-3.5 w-3.5 ml-1.5 text-green-500" />;
           } else {
@@ -31,8 +31,8 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, activeCategory,
               onClick={() => onSelectCategory(category.id)}
               className={`flex items-center py-4 px-3 sm:px-4 border-b-2 font-medium text-sm 
                 ${activeCategory === category.id
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+                  ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'}
                 ${index === categories.length - 1 ? 'mr-4 sm:mr-0' : ''} // Add margin to the last item for scroll visibility
               `}
               aria-current={activeCategory === category.id ? 'page' : undefined}

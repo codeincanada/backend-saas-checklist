@@ -25,7 +25,7 @@ const ChecklistSection: React.FC<ChecklistSectionProps> = ({ section }) => {
 
   return (
     <div 
-      className="bg-white rounded-xl shadow-md overflow-hidden mb-6 transform transition-all duration-300 hover:shadow-lg"
+      className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden mb-6 transform transition-all duration-300 hover:shadow-lg border dark:border-gray-700"
       data-section-id={section.id}
     >
       <div className="p-4 animate-fadeIn">
