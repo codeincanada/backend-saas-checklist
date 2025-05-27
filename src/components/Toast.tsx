@@ -56,7 +56,7 @@ const Toast: React.FC<ToastProps> = ({
   };
 
   return (
-    <div className={`fixed top-4 right-4 z-50 max-w-sm w-full shadow-md rounded-lg border-l-4 p-4 
+    <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 md:left-auto md:right-4 md:transform-none z-50 max-w-sm w-auto mx-4 shadow-md rounded-lg border-l-4 p-4 
       ${bgColors[effectiveType]} animate-slide-in-right flex items-start`}>
       <div className="mr-3">
         {getIcon()}
