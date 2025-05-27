@@ -8,7 +8,7 @@ const Header: React.FC = () => {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
             <img src="/ChatGPT_logo.png" alt="Logo" className="h-10 w-10" />
-            <h1 className="text-3xl font-bold">Backend Microservice Checklist</h1>
+            <h1 className="text-3xl font-bold">Checklist</h1>
           </div>
           <ThemeToggle />
         </div>
