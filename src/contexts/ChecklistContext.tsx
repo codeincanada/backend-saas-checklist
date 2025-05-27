@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { ChecklistSection, ChecklistItem } from '../types';
 import { sections as initialSections } from '../utils/data';
 import { useAuth } from './AuthContext';
@@ -150,7 +150,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
   };
   
   // Function to get all checklist IDs for the user
-  const getChecklistIds = async () => {
+  const getChecklistIds = useCallback(async () => {
     if (!isAuthenticated || !user) {
       setError('You must be logged in to view checklists');
       return [];
@@ -181,10 +181,10 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAuthenticated, user]);
   
   // Function to get a specific checklist by name
-  const getChecklist = async (checklistName: string) => {
+  const getChecklist = useCallback(async (checklistName: string) => {
     if (!isAuthenticated || !user) {
       setError('You must be logged in to view checklists');
       return null;
@@ -217,7 +217,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAuthenticated, user]);
   
   // Function to delete a checklist
   const deleteChecklist = async (checklistName: string) => {
@@ -255,6 +255,19 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       }
       
       console.log('Checklist deleted successfully');
+      
+      // Update the available checklists list by removing the deleted checklist
+      setAvailableChecklists(prev => prev.filter(cl => cl.checklistName !== checklistName));
+      
+      // If the deleted checklist was the current one, reset to initial state
+      if (currentChecklistId === checklistName) {
+        setSections(initialSections);
+        setCurrentChecklistId(undefined);
+      }
+      
+      setToastMessage(`Successfully deleted checklist: ${checklistName}`);
+      setTimeout(() => clearToastMessage(), 3000);
+      
     } catch (err) {
       console.error('Error in deleteChecklist:', err);
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
@@ -303,18 +316,19 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       setCurrentChecklistId(trimmedNewName);
       
       // Manually ensure sections are reset to initial state for the new checklist display
-      // as loadChecklists might take time or rely on currentChecklistId already being set before it runs.
-      // setCurrentChecklistId above will trigger loadChecklists, which should handle setting sections.
-      // However, to be safe and provide immediate feedback that it's a *new* list:
       setSections(initialSections);
 
+      // Add the new checklist to the available checklists list immediately
+      setAvailableChecklists(prev => [
+        ...prev.filter(cl => cl.checklistName !== trimmedNewName), // Remove if exists
+        {
+          checklistName: trimmedNewName,
+          lastUpdatedAt: new Date().toISOString()
+        }
+      ]);
 
       setToastMessage(`Successfully created checklist: ${trimmedNewName}`);
       setTimeout(() => clearToastMessage(), 3000);
-      
-      // Refresh the list of available checklists as saveChecklist doesn't do it.
-      // And setCurrentChecklistId's triggered loadChecklists might not have updated availableChecklists yet.
-      await loadChecklists(); 
 
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to create checklist';
@@ -327,7 +341,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
   };
 
   // Load available checklists from the API
-  const loadChecklists = async () => {
+  const loadChecklists = useCallback(async () => {
     if (!isAuthenticated) return;
     
     setIsLoading(true);
@@ -445,7 +459,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAuthenticated, currentChecklistId, getChecklistIds, getChecklist]);
 
   // Function to save current progress to the backend
   const saveCurrentProgress = async () => {

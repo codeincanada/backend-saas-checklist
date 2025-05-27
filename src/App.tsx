@@ -138,10 +138,6 @@ const AppContent: React.FC = () => {
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-md flex items-center transition-colors"
                   onClick={() => {
                     setShowChecklistsDropdown(!showChecklistsDropdown);
-                    if (!showChecklistsDropdown) {
-                      // Refresh the list of checklists when opening the dropdown
-                      loadChecklists();
-                    }
                   }}
                 >
                   <span>Checklists</span>
@@ -168,9 +164,6 @@ const AppContent: React.FC = () => {
                             console.log(`Selecting checklist: ${checklist.checklistName}`);
                             setCurrentChecklistId(checklist.checklistName);
                             
-                            // loadChecklists will just load the data without saving
-                            await loadChecklists();
-                            
                             // Close the dropdown
                             setShowChecklistsDropdown(false);
                           }}
@@ -194,10 +187,6 @@ const AppContent: React.FC = () => {
                                   
                                   console.log(`Successfully requested deletion of: ${checklist.checklistName}`);
                                   
-                                  // Force reload the list immediately
-                                  setTimeout(() => {
-                                    loadChecklists();
-                                  }, 500);
                                 } catch (err) {
                                   console.error('Error when trying to delete checklist:', err);
                                   alert('Failed to delete checklist. Please try again.');
