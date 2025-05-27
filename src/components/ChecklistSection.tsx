@@ -28,21 +28,6 @@ const ChecklistSection: React.FC<ChecklistSectionProps> = ({ section }) => {
       className="bg-white rounded-xl shadow-md overflow-hidden mb-6 transform transition-all duration-300 hover:shadow-lg"
       data-section-id={section.id}
     >
-      <div className={`${section.color}`}>
-        <div className="p-4 flex items-center text-white">
-          <div className="p-2 bg-white/20 rounded-lg">
-            {iconMap[section.icon]}
-          </div>
-        </div>
-        
-        <div className="h-2 bg-white/20">
-          <div
-            className="h-full bg-white/60 transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-      </div>
-      
       <div className="p-4 animate-fadeIn">
         {section.items.map((item) => (
           <ChecklistItem 
