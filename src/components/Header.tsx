@@ -11,7 +11,7 @@ const Header: React.FC = () => {
         <div className="flex items-center mb-4 md:mb-0">
           <Server className="h-10 w-10 mr-3" />
           <h1 className="text-3xl font-bold tracking-tight">
-            Backend Microservice Checklist
+            Checklist
           </h1>
         </div>
         
