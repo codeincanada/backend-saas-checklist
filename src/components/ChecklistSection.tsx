@@ -29,23 +29,14 @@ const ChecklistSection: React.FC<ChecklistSectionProps> = ({ section }) => {
       data-section-id={section.id}
     >
       <div className={`${section.color}`}>
-        <div className="p-4 flex justify-between items-center text-white">
-          <div className="flex items-center">
-            <div className="p-2 bg-white/20 rounded-lg mr-3">
-              {iconMap[section.icon]}
-            </div>
-            <h3 className="text-xl font-bold tracking-tight">{section.title}</h3>
-          </div>
-          
-          <div className="flex items-center">
-            <div className="mr-4">
-              <span className="font-medium">{Math.round(progress)}%</span>
-            </div>
+        <div className="p-4 flex items-center text-white">
+          <div className="p-2 bg-white/20 rounded-lg">
+            {iconMap[section.icon]}
           </div>
         </div>
         
         <div className="h-2 bg-white/20">
-          <div 
+          <div
             className="h-full bg-white/60 transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
           ></div>
