@@ -31,6 +31,12 @@ interface ChecklistContextType {
   clearAllData: (options?: { preserveChecklistId?: boolean }) => void;
   toastMessage: string | null;
   clearToastMessage: () => void;
+  prMetadata: {
+    prUrl?: string;
+    prTitle?: string;
+    prNumber?: number;
+    repository?: string;
+  } | null;
 
   // API related
   saveChecklist: (checklistName: string, content: ChecklistContent) => Promise<void>;
@@ -39,6 +45,7 @@ interface ChecklistContextType {
   getChecklist: (checklistName: string) => Promise<{checklistName: string, content: ChecklistContent, lastUpdatedAt: string} | null>;
   deleteChecklist: (checklistName: string) => Promise<void>;
   createChecklist: (newChecklistName: string) => Promise<void>;
+  createChecklistFromPR: (prUrl: string) => Promise<void>;
   isLoading: boolean;
   error: string | null;
   clearError: () => void;
@@ -64,6 +71,12 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
   const [availableChecklists, setAvailableChecklists] = useState<Array<{checklistName: string, lastUpdatedAt: string}>>([]);
   const [currentChecklistId, setCurrentChecklistId] = useState<string>();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [prMetadata, setPrMetadata] = useState<{
+    prUrl?: string;
+    prTitle?: string;
+    prNumber?: number;
+    repository?: string;
+  } | null>(null);
 
   const clearError = () => {
     setError(null);
@@ -340,6 +353,106 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
     }
   };
 
+  // Function to create a new checklist from GitHub PR
+  const createChecklistFromPR = async (prUrl: string) => {
+    if (!isAuthenticated || !user) {
+      const authErrorMsg = 'You must be logged in to create checklists';
+      setError(authErrorMsg);
+      throw new Error(authErrorMsg);
+    }
+    if (!prUrl.trim()) {
+      const urlErrorMsg = 'PR URL cannot be empty';
+      setError(urlErrorMsg);
+      throw new Error(urlErrorMsg);
+    }
+
+    // Validate GitHub PR URL format
+    const prUrlPattern = /^https:\/\/github\.com\/([^\/]+)\/([^\/]+)\/pull\/(\d+)$/;
+    if (!prUrlPattern.test(prUrl.trim())) {
+      const formatErrorMsg = 'Please provide a valid GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)';
+      setError(formatErrorMsg);
+      throw new Error(formatErrorMsg);
+    }
+
+    setIsLoading(true);
+    setError(null);
+    const trimmedPrUrl = prUrl.trim();
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/checklist/from-pr`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-github-user-id': user.login
+        },
+        body: JSON.stringify({ prUrl: trimmedPrUrl })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to create checklist from PR');
+      }
+
+      const result = await response.json();
+      const { checklistName, content } = result;
+
+      // Set it as the current checklist
+      setCurrentChecklistId(checklistName);
+      
+      // Process and apply the PR-generated checklist data
+      const loadedSections = [...initialSections];
+      
+      Object.entries(content.sections).forEach(([sectionId, sectionData]: [string, any]) => {
+        const sectionIndex = loadedSections.findIndex(s => s.id === sectionId);
+        if (sectionIndex !== -1 && sectionData && typeof sectionData === 'object' && 'items' in sectionData) {
+          const sectionItems = sectionData.items as Record<string, boolean>;
+          const items = loadedSections[sectionIndex].items.map(item => ({
+            ...item,
+            checked: sectionItems[item.id] || false
+          }));
+          
+          loadedSections[sectionIndex] = {
+            ...loadedSections[sectionIndex],
+            items
+          };
+        }
+      });
+      
+      setSections(loadedSections);
+
+      // Extract PR metadata if available
+      if (content.prUrl || content.prTitle || content.prNumber || content.repository) {
+        setPrMetadata({
+          prUrl: content.prUrl,
+          prTitle: content.prTitle,
+          prNumber: content.prNumber,
+          repository: content.repository
+        });
+      } else {
+        setPrMetadata(null);
+      }
+
+      // Add the new checklist to the available checklists list immediately
+      setAvailableChecklists(prev => [
+        ...prev.filter(cl => cl.checklistName !== checklistName), // Remove if exists
+        {
+          checklistName: checklistName,
+          lastUpdatedAt: new Date().toISOString()
+        }
+      ]);
+
+      setToastMessage(`Successfully created checklist from PR: ${checklistName}`);
+      setTimeout(() => clearToastMessage(), 3000);
+
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create checklist from PR';
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Load available checklists from the API
   const loadChecklists = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -380,6 +493,19 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
           
           setSections(loadedSections);
           
+          // Extract PR metadata if available
+          const content = checklist.content as any;
+          if (content.prUrl || content.prTitle || content.prNumber || content.repository) {
+            setPrMetadata({
+              prUrl: content.prUrl,
+              prTitle: content.prTitle,
+              prNumber: content.prNumber,
+              repository: content.repository
+            });
+          } else {
+            setPrMetadata(null);
+          }
+          
           // Add to available checklists
           for (const id of checklistIds) {
             formattedChecklists.push({
@@ -393,6 +519,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       } else if (checklistIds.length > 0) {
         // If we're on the default checklist but have others available,
         // just list them without loading
+        setPrMetadata(null); // Clear PR metadata for default checklist
         for (const id of checklistIds) {
           formattedChecklists.push({
             checklistName: id,
@@ -427,6 +554,19 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
           setSections(loadedSections);
           setCurrentChecklistId(firstChecklistId);
           
+          // Extract PR metadata if available
+          const content = checklist.content as any;
+          if (content.prUrl || content.prTitle || content.prNumber || content.repository) {
+            setPrMetadata({
+              prUrl: content.prUrl,
+              prTitle: content.prTitle,
+              prNumber: content.prNumber,
+              repository: content.repository
+            });
+          } else {
+            setPrMetadata(null);
+          }
+          
           // Add to available checklists
           for (const id of checklistIds) {
             formattedChecklists.push({
@@ -444,6 +584,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
         
         // We only create a new checklist entry when an item is modified, not when just selecting a checklist.
         // So we don't call saveCurrentProgress() here anymore
+        setPrMetadata(null); // Clear PR metadata for new checklist
         
         // Add to available checklists
         formattedChecklists.push({
@@ -672,6 +813,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       clearAllData,
       toastMessage,
       clearToastMessage,
+      prMetadata,
       
       // API related
       saveChecklist,
@@ -694,6 +836,7 @@ export const ChecklistProvider: React.FC<ChecklistProviderProps> = ({ children }
       getChecklist,
       deleteChecklist,
       createChecklist,
+      createChecklistFromPR,
       isLoading,
       error,
       clearError

@@ -5,10 +5,11 @@ import ChecklistSwitcher from './ChecklistSwitcher';
 import LoadingIndicator from './LoadingIndicator';
 import ErrorIndicator from './ErrorIndicator';
 import ChecklistWorkspace from './ChecklistWorkspace';
+import PRInfo from './PRInfo';
 
 const MainContent: React.FC = () => {
   const { isAuthenticated } = useAuth();
-  const { isLoading } = useChecklist();
+  const { isLoading, prMetadata } = useChecklist();
 
   return (
     <main className="py-6 container mx-auto px-4 pb-24">
@@ -25,6 +26,16 @@ const MainContent: React.FC = () => {
       )}
       
       <ErrorIndicator />
+      
+      {/* PR Information */}
+      {prMetadata && (
+        <PRInfo 
+          prUrl={prMetadata.prUrl}
+          prTitle={prMetadata.prTitle}
+          prNumber={prMetadata.prNumber}
+          repository={prMetadata.repository}
+        />
+      )}
       
       {/* Main Workspace */}
       <ChecklistWorkspace />

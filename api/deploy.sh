@@ -92,16 +92,35 @@ echo "Deploying function app to $FIXED_FUNCTION_APP_NAME..."
 func azure functionapp publish "$FIXED_FUNCTION_APP_NAME" --node-version 22 --force
 
 # Get the function URL for the fixed function app name
-echo "Getting function URL for $FIXED_FUNCTION_APP_NAME..."
-FUNCTION_URL=$(az functionapp function show --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --function-name githubAuth --query "invokeUrlTemplate" --output tsv)
+echo "Getting function URLs for $FIXED_FUNCTION_APP_NAME..."
+GITHUB_AUTH_URL=$(az functionapp function show --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --function-name githubAuth --query "invokeUrlTemplate" --output tsv)
+CREATE_FROM_PR_URL=$(az functionapp function show --name "$FIXED_FUNCTION_APP_NAME" --resource-group "$FIXED_RESOURCE_GROUP" --function-name createChecklistFromPR --query "invokeUrlTemplate" --output tsv 2>/dev/null || echo "Function not found or not yet available")
 
 echo "Deployment to $FIXED_FUNCTION_APP_NAME completed successfully!"
-echo "Function URL: $FUNCTION_URL"
 echo ""
-echo "Ensure AuthContext.tsx uses this URL for production:"
-echo "const AZURE_FUNCTION_URL = '$FUNCTION_URL';"
+echo "=== Function URLs ==="
+echo "GitHub Auth URL: $GITHUB_AUTH_URL"
+echo "Create from PR URL: $CREATE_FROM_PR_URL"
 echo ""
-echo "Ensure your GitHub OAuth App callback URL is: $FUNCTION_URL"
+echo "=== Frontend Configuration ==="
+echo "Update AuthContext.tsx with:"
+echo "const AZURE_FUNCTION_URL = '$GITHUB_AUTH_URL';"
+echo ""
+echo "Update ChecklistContext.tsx with:"
+echo "const API_BASE_URL = 'https://${FIXED_FUNCTION_APP_NAME}.azurewebsites.net/api';"
+echo ""
+echo "=== GitHub OAuth Configuration ==="
+echo "Set your GitHub OAuth App callback URL to: $GITHUB_AUTH_URL"
+echo ""
+echo "=== Available API Endpoints ==="
+echo "- POST /api/checklist/from-pr (Create checklist from PR)"
+echo "- POST /api/checklist (Create/Add checklist)"
+echo "- PUT /api/checklist (Update checklist)"
+echo "- GET /api/checklist/{name} (Get specific checklist)"
+echo "- GET /api/checklists (Get all user checklists)"
+echo "- DELETE /api/checklist (Delete checklist)"
+echo "- POST /api/checklist/item-status (Update item status)"
+echo "- GET /api/githubAuth (GitHub OAuth callback)"
 
 echo "Ensuring FUNCTIONS_WORKER_RUNTIME is set to node..."
 az functionapp config appsettings set -g "$FIXED_RESOURCE_GROUP" -n "$FIXED_FUNCTION_APP_NAME" --settings \

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useChecklist } from '../contexts/ChecklistContext';
 import { useAuth } from '../contexts/AuthContext';
-import { ChevronDown, Plus, Trash2, Check, List } from 'lucide-react';
+import { ChevronDown, Plus, Trash2, Check, List, GitPullRequest, Type } from 'lucide-react';
 
 const ChecklistSwitcher: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -10,13 +10,16 @@ const ChecklistSwitcher: React.FC = () => {
     currentChecklistId,
     setCurrentChecklistId,
     createChecklist,
+    createChecklistFromPR,
     deleteChecklist,
     isLoading
   } = useChecklist();
 
   const [isOpen, setIsOpen] = useState(false);
   const [newChecklistName, setNewChecklistName] = useState('');
+  const [prUrl, setPrUrl] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createMode, setCreateMode] = useState<'manual' | 'pr'>('manual');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -27,6 +30,7 @@ const ChecklistSwitcher: React.FC = () => {
         setIsOpen(false);
         setShowCreateForm(false);
         setNewChecklistName('');
+        setPrUrl('');
       }
     };
 
@@ -42,15 +46,26 @@ const ChecklistSwitcher: React.FC = () => {
   }, [showCreateForm]);
 
   const handleCreateChecklist = async () => {
-    if (!newChecklistName.trim()) return;
-    
-    try {
-      await createChecklist(newChecklistName.trim());
-      setNewChecklistName('');
-      setShowCreateForm(false);
-      setIsOpen(false);
-    } catch (error) {
-      console.error('Error creating checklist:', error);
+    if (createMode === 'manual') {
+      if (!newChecklistName.trim()) return;
+      try {
+        await createChecklist(newChecklistName.trim());
+        setNewChecklistName('');
+        setShowCreateForm(false);
+        setIsOpen(false);
+      } catch (error) {
+        console.error('Error creating checklist:', error);
+      }
+    } else if (createMode === 'pr') {
+      if (!prUrl.trim()) return;
+      try {
+        await createChecklistFromPR(prUrl.trim());
+        setPrUrl('');
+        setShowCreateForm(false);
+        setIsOpen(false);
+      } catch (error) {
+        console.error('Error creating checklist from PR:', error);
+      }
     }
   };
 
@@ -133,6 +148,8 @@ const ChecklistSwitcher: React.FC = () => {
                 onClick={() => {
                   setShowCreateForm(true);
                   setNewChecklistName('');
+                  setPrUrl('');
+                  setCreateMode('manual');
                 }}
                 className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded transition-colors"
                 disabled={isLoading}
@@ -145,28 +162,38 @@ const ChecklistSwitcher: React.FC = () => {
 
           {/* Create Form */}
           {showCreateForm && (
-                         <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+            <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+              {/* Mode Switcher */}
+              <div className="flex mb-3 bg-gray-200 dark:bg-gray-600 rounded-lg p-1">
+                <button
+                  onClick={() => setCreateMode('manual')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    createMode === 'manual'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+                  }`}
+                >
+                  <Type className="h-4 w-4" />
+                  Manual
+                </button>
+                <button
+                  onClick={() => setCreateMode('pr')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    createMode === 'pr'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
+                  }`}
+                >
+                  <GitPullRequest className="h-4 w-4" />
+                  From PR
+                </button>
+              </div>
+
               <div className="flex gap-2">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={newChecklistName}
-                  onChange={(e) => setNewChecklistName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleCreateChecklist();
-                    } else if (e.key === 'Escape') {
-                      setShowCreateForm(false);
-                      setNewChecklistName('');
-                    }
-                  }}
-                  placeholder="Enter checklist name..."
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:focus:ring-indigo-400"
-                  disabled={isLoading}
-                />
+
                 <button
                   onClick={handleCreateChecklist}
-                  disabled={!newChecklistName.trim() || isLoading}
+                  disabled={(createMode === 'manual' && !newChecklistName.trim()) || (createMode === 'pr' && !prUrl.trim()) || isLoading}
                   className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:disabled:bg-gray-600 text-white rounded-md transition-colors text-sm"
                 >
                   <Check className="h-4 w-4" />
