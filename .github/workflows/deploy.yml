@@ -17,8 +17,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verify:
-    name: Verify build
+  build:
+    name: Build & Verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -37,10 +37,18 @@ jobs:
       - name: Build production bundle
         run: npm run build
 
+      - name: Upload build artifact
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-bundle
+          path: dist/
+          retention-days: 7
+
   deploy:
     name: Deploy to RV415
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
-    needs: verify
+    needs: build
     runs-on:
       - self-hosted
       - Linux
@@ -50,24 +58,18 @@ jobs:
     environment:
       name: production
       url: https://checklist.w-b.dev
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
-      - name: Check out merged revision
+      - name: Check out repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
         with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build production bundle
-        run: npm run build
+          name: dist-bundle
+          path: dist/
 
       - name: Deploy and verify production
         env:
